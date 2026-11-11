@@ -105,6 +105,10 @@ const BADGES = [
   { id: 'armor5', icon: '👑', name: 'Legend of the City', desc: 'Earn the full armor set', ok: () => Calc.armorCount() >= 5 },
   { id: 'lvl10', icon: '🌟', name: 'Level 10 Hero', desc: 'Reach hero level 10', ok: () => S.level >= 10 },
   { id: 'power200', icon: '⚡', name: 'Power 200', desc: 'Reach Power Level 200', ok: () => Calc.power() >= 200 },
+  { id: 'base1', icon: '📡', name: 'Base Buster', desc: 'Destroy a robot base', ok: () => S.bases.some(Boolean) },
+  { id: 'pal1', icon: '🤖', name: 'Robot Friend', desc: 'Build your first Robo-Pal', ok: () => Object.keys(S.palLv).length >= 1 },
+  { id: 'pilot', icon: '✈️', name: 'Ace Pilot', desc: 'Buy the fighter jet', ok: () => S.veh.jet },
+  { id: 'roof', icon: '🏢', name: 'Roof Runner', desc: 'Open a rooftop treasure', ok: () => (S.stats.roofs || 0) >= 1 },
   { id: 'rumble8', icon: '🏟️', name: 'Rumble Champion', desc: 'Reach wave 8 in Robot Rumble', ok: () => S.stats.rumble >= 8 }
 ];
 function checkBadges() { // returns newly earned badges
@@ -122,7 +126,10 @@ const TIPS = [
   'A boss gets dizzy after a big attack. That is your chance!',
   'Punch the golden crates. The city is full of coins!',
   'If a mission is too hard, train in the Dojo and come back stronger.',
-  'Blue power crystals ask brain questions. Smart heroes get power surges!'
+  'Blue power crystals ask brain questions. Smart heroes get power surges!',
+  'Run into any wall and hold JUMP to climb it. There is treasure on the rooftops!',
+  'Robots drop green cores. Take them to the Robo Lab to build a robot friend.',
+  'Press F to call your car. You can ram robots with it!'
 ];
 
 /* ---------------- Brain questions (get harder as the kid gets better) ---------------- */

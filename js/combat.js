@@ -19,12 +19,13 @@ Object.assign(World.prototype, {
       else if (S.armor[0] && h.jumps < 2) { h.vy = 8.6; h.jumps = 2; Snd.play('jump'); this.fx.ring(h.x, h.z, '#39d0ff', 1.6, h.y); }
     }
     h.jet = false;
-    if (ctl && S.armor[3] && !h.on && Input.held('jump') && h.vy < 3 && h.en > 2 && h.y < 90) { h.vy = Math.min(h.vy + 62 * dt, 6.5); h.en -= 20 * dt; h.jet = true; if (Math.random() < 0.5) this.fx.add({ k: 0, x: h.x - Math.sin(h.yaw) * 0.3, y: h.y + 0.9, z: h.z - Math.cos(h.yaw) * 0.3, vx: rand(-1, 1), vy: -6, vz: rand(-1, 1), life: 0.25, max: 0.25, c: C3('#ffb347'), s: 0.09, g: 0 }); }
-    h.vy -= 24 * dt; h.y += h.vy * dt; h.x += h.vx * dt; h.z += h.vz * dt;
-    this.collide(h, 0.55);
+    if (ctl && S.armor[3] && !h.on && !h.climb && !h.chute && Input.held('jump') && h.vy < 3 && h.en > 2 && h.y < 90) { h.vy = Math.min(h.vy + 62 * dt, 6.5); h.en -= 20 * dt; h.jet = true; if (Math.random() < 0.5) this.fx.add({ k: 0, x: h.x - Math.sin(h.yaw) * 0.3, y: h.y + 0.9, z: h.z - Math.cos(h.yaw) * 0.3, vx: rand(-1, 1), vy: -6, vz: rand(-1, 1), life: 0.25, max: 0.25, c: C3('#ffb347'), s: 0.09, g: 0 }); }
+    h.vy -= 24 * dt; if (h.chute) h.vy = Math.max(h.vy, -7); h.y += h.vy * dt; h.x += h.vx * dt; h.z += h.vz * dt;
+    const wall = this.collide(h, 0.55); h.climb = false;
+    if (wall && ctl && Input.held('jump') && fw > 0 && wall.top > h.y + 0.3) { h.vy = 7.5; h.climb = true; h.on = false; h.jumps = 0; h.chute = false; } // climb any wall: run into it and hold JUMP
     if (m) { const dx = h.x - m.cx, dz = h.z - m.cz, d = Math.hypot(dx, dz); if (d > m.R - 1) { h.x = m.cx + dx / d * (m.R - 1); h.z = m.cz + dz / d * (m.R - 1); } }
     const f = this.floorAt(h.x, h.z, h.y);
-    if (h.y <= f) { if (!h.on && h.vy < -9) this.fx.smoke(h.x, f + 0.1, h.z, 2, '#c8c8d2'); h.y = f; h.vy = 0; h.on = true; h.jumps = 0; } else if (h.y > f + 0.05) h.on = false;
+    if (h.y <= f) { if (!h.on && h.vy < -9) this.fx.smoke(h.x, f + 0.1, h.z, 2, '#c8c8d2'); h.y = f; h.vy = 0; h.on = true; h.jumps = 0; h.chute = false; } else if (h.y > f + 0.05) h.on = false;
     // attacks
     if (ctl && (Input.hit('punch') || Input.mouse.clicked)) { if (!h.atk) this.startAtk(); else if (h.atk.t > h.atk.dur * 0.3) h.buf = true; }
     if (h.atk) {
@@ -66,7 +67,8 @@ Object.assign(World.prototype, {
     const h = this.h, wid = S.wp.m, Wp = MELEE[wid], dm = Calc.punch() * a.mult * Wp.mult, full = a.big && wid === 'sword', slam = a.big && wid === 'hammer' && h.on; let any = false;
     const inArc = (x, z, r) => { const dx = x - h.x, dz = z - h.z, d = Math.hypot(dx, dz) - r; if (slam) return d < 5.5; if (d > Wp.range) return false; return full || d < 0.6 || Math.abs(wrapA(Math.atan2(dx, dz) - h.yaw)) < Wp.arc; };
     for (const e of this.en) { if (e.dead || !inArc(e.x, e.z, e.r) || e.y > h.y + 2.9 || e.y + e.h < h.y - 0.3 || (slam && e.y > 1)) continue; this.damage(e, dm, a.big); any = true; }
-    for (const c of this.crates) if (!c.dead && h.y < 2 && inArc(c.x, c.z, 0.7)) { this.breakCrate(c); any = true; }
+    for (const c of this.crates) if (!c.dead && Math.abs(h.y - (c.y || 0)) < 2 && inArc(c.x, c.z, 0.7)) { this.breakCrate(c); any = true; }
+    for (const b of this.bases) if (!b.dead && h.y < 4 && Math.max(Math.abs(b.x - h.x), Math.abs(b.z - h.z)) < 12.7 + Wp.range) { this.damageBase(b, dm * 0.5); any = true; }
     if (slam) { this.fx.ring(h.x, h.z, '#ffd23f', 5.5); this.fx.smoke(h.x + Math.sin(h.yaw) * 1.5, 0.2, h.z + Math.cos(h.yaw) * 1.5, 5, '#c8c8d2'); this.shake = Math.max(this.shake, 0.5); Snd.play('bighit'); }
     if (any) { this.hitstop = a.big ? 0.09 : 0.045; this.shake = Math.max(this.shake, a.big ? 0.4 : 0.15); Snd.play(a.big ? 'bighit' : 'hit'); }
     if (a.big && S.armor[1] && !slam) { this.fx.ring(h.x, h.z, '#ffd23f', 4.5, h.y + 0.2); Snd.play('zap'); for (const e of this.en) if (!e.dead && !e.flying && Math.hypot(e.x - h.x, e.z - h.z) - e.r < 4.5 && !inArc(e.x, e.z, e.r)) this.damage(e, Calc.punch() * 0.7, false); }
@@ -85,13 +87,14 @@ Object.assign(World.prototype, {
     if (ups) { const h = this.h; this.refresh(false); h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.35); this.setBanner('⬆ LEVEL UP!', `You are now Level ${S.level}  •  Power ${Calc.power()}`, '#7df9ff', 2.2); Snd.play('levelup'); this.fx.ring(this.h.x, this.h.z, '#7df9ff', 6, this.h.y + 0.3); Save.save(); }
   },
   breakCrate(c) {
-    c.dead = true; c.resp = 80; this.fx.debris(c.x, 0.8, c.z, 9, c.gold ? '#ffd23f' : '#9a6d3a'); this.fx.spark(c.x, 0.8, c.z, 10, '#ffe14d');
-    const df = this.mis ? this.mis.diff : Math.min(S.stage, 14) * 0.6; this.dropCoins(c.x, 1, c.z, Math.round((c.gold ? 26 : 8) * (1 + df * 0.12)), c.gold ? 9 : 5);
-    if (Math.random() < 0.25) this.picks.push({ k: 'heart', x: c.x, y: 1, z: c.z, vx: rand(-2, 2), vy: 8, vz: rand(-2, 2), t: 0 });
+    const cy = c.y || 0; c.dead = true; c.resp = c.roof ? 240 : 80; this.fx.debris(c.x, cy + 0.8, c.z, 9, c.gold ? '#ffd23f' : '#9a6d3a'); this.fx.spark(c.x, cy + 0.8, c.z, 10, '#ffe14d');
+    const df = this.mis ? this.mis.diff : Math.min(S.stage, 14) * 0.6; this.dropCoins(c.x, cy + 1, c.z, Math.round((c.roof ? 45 : c.gold ? 26 : 8) * (1 + df * 0.12)), c.gold ? 9 : 5, cy);
+    if (c.roof) { S.stats.roofs = (S.stats.roofs || 0) + 1; this.text(c.x, cy + 2.6, c.z, 'ROOFTOP TREASURE!', '#ffe14d', 28); UI.badgeToasts(checkBadges()); }
+    if (Math.random() < 0.25) this.picks.push({ k: 'heart', x: c.x, y: cy + 1, z: c.z, vx: rand(-2, 2), vy: 8, vz: rand(-2, 2), t: 0, f: cy });
   },
-  dropCoins(x, y, z, total, n) {
+  dropCoins(x, y, z, total, n, f = 0) {
     total = Math.max(1, Math.round(total * (this.h.boost > 0 ? 2 : 1))); n = Math.min(n, total); const val = Math.floor(total / n); let rem = total - val * n;
-    for (let i = 0; i < n; i++) this.picks.push({ k: 'coin', x, y, z, vx: rand(-5, 5), vy: rand(6, 11), vz: rand(-5, 5), val: val + (rem-- > 0 ? 1 : 0), t: rand(0.2) });
+    for (let i = 0; i < n; i++) this.picks.push({ k: 'coin', x, y, z, vx: rand(-5, 5), vy: rand(6, 11), vz: rand(-5, 5), val: val + (rem-- > 0 ? 1 : 0), t: rand(0.2), f });
   },
   damage(e, dmg, big, sx, sz) {
     if (e.dead) return; const h = this.h;
@@ -115,18 +118,19 @@ Object.assign(World.prototype, {
     this.dropCoins(e.x, cy, e.z, e.coins * (1 + e.diff * 0.12), e.boss ? 16 : 4);
     const low = this.h.hp < this.h.maxHp * 0.4;
     if (Math.random() < (low ? 0.4 : 0.1) + S.build.hospital * 0.05 || e.boss) this.picks.push({ k: 'heart', x: e.x, y: cy, z: e.z, vx: rand(-2, 2), vy: 8, vz: rand(-2, 2), t: 0 });
+    if (!e.boss && Math.random() < 0.4) this.picks.push({ k: 'core', kind: e.kind, x: e.x, y: cy, z: e.z, vx: rand(-2, 2), vy: 9, vz: rand(-2, 2), t: 0 }); // a core: enough of them rebuild this robot as a Robo-Pal
     if (e.boss) { this.slow = 1.3; this.boss = null; Music.play('battle'); for (const o of this.en) if (!o.dead && o !== e) { o.hp = 0; this.kill(o); } if (m) m.queue = []; }
     this.gainXp(xp); UI.badgeToasts(checkBadges());
   },
   hurtHero(dmg, fx, fz) {
     const h = this.h, m = this.mis;
     if (h.inv > 0 || h.superT > 0 || this.koT > 0 || (m && m.state !== 'fight' && m.state !== 'between')) return;
-    if (S.armor[2]) dmg *= 0.75;
+    if (S.armor[2]) dmg *= 0.75; if (h.veh) dmg *= 0.5;
     dmg = Math.max(1, Math.round(dmg)); h.hp -= dmg; h.hurtT = 0.28; h.inv = 1.1; h.atk = null; h.buf = false; h.calm = 0;
-    const dx = h.x - fx, dz = h.z - fz, d = Math.hypot(dx, dz) || 1; h.vx = dx / d * 10; h.vz = dz / d * 10; if (h.on) { h.vy = 5; h.on = false; }
+    const dx = h.x - fx, dz = h.z - fz, d = Math.hypot(dx, dz) || 1; if (!h.veh) { h.vx = dx / d * 10; h.vz = dz / d * 10; if (h.on) { h.vy = 5; h.on = false; } }
     this.combo = 0; if (m) m.got.hits++; this.shake = Math.max(this.shake, 0.4); Snd.play('hurt');
     this.text(h.x, h.y + 2.7, h.z, '-' + dmg, '#ff6b5a', 28); this.fx.spark(h.x, h.y + 1.2, h.z, 8, '#ff6b5a');
-    if (h.hp <= 0) { h.hp = 0; hush(); if (m) { m.state = 'lose'; m.stT = 0; } else this.koT = 1.5; }
+    if (h.hp <= 0) { h.hp = 0; hush(); if (h.veh) this.leaveVeh(true); if (m) { m.state = 'lose'; m.stT = 0; } else this.koT = 1.5; }
   },
 
   /* ---------------- robots ---------------- */
@@ -236,9 +240,12 @@ Object.assign(World.prototype, {
     return false;
   },
   explode(s) {
-    this.fx.ring(s.x, s.z, '#ff7b3d', 5.5, Math.max(0.2, s.y)); this.fx.spark(s.x, s.y, s.z, 26, '#ffb347', 14); this.fx.smoke(s.x, s.y, s.z, 6); Snd.play('explode'); this.shake = Math.max(this.shake, 0.5);
-    for (const e of this.en) if (!e.dead && Math.hypot(e.x - s.x, e.z - s.z) - e.r < 5.5 && Math.abs(e.y + e.h / 2 - s.y) < 6) this.damage(e, s.dmg, true, s.x, s.z);
-    for (const c of this.crates) if (!c.dead && Math.hypot(c.x - s.x, c.z - s.z) < 5.5) this.breakCrate(c);
+    const R = s.rad || 5.5, near = Math.hypot(s.x - this.h.x, s.z - this.h.z) < 70;
+    this.fx.ring(s.x, s.z, '#ff7b3d', R, Math.max(0.2, s.y)); this.fx.spark(s.x, s.y, s.z, 26, '#ffb347', 14); this.fx.smoke(s.x, s.y, s.z, 6); if (near) { Snd.play('explode'); this.shake = Math.max(this.shake, 0.5); }
+    if (!s.dmg) return;
+    for (const e of this.en) if (!e.dead && Math.hypot(e.x - s.x, e.z - s.z) - e.r < R && Math.abs(e.y + e.h / 2 - s.y) < R + 1) this.damage(e, s.dmg, true, s.x, s.z);
+    for (const c of this.crates) if (!c.dead && Math.hypot(c.x - s.x, c.z - s.z) < R && Math.abs((c.y || 0) - s.y) < R + 2) this.breakCrate(c);
+    for (const b of this.bases) if (!b.dead && Math.max(Math.abs(b.x - s.x), Math.abs(b.z - s.z)) < 13 + R && s.y < 24) this.damageBase(b, s.dmg);
   },
   upShots(dt) {
     const h = this.h;
@@ -250,13 +257,14 @@ Object.assign(World.prototype, {
         if (Math.random() < 0.7) this.fx.add({ k: 0, x: s.x, y: s.y, z: s.z, vx: rand(-1, 1), vy: rand(-1, 1), vz: rand(-1, 1), life: 0.18, max: 0.18, c: C3(s.k === 'rocket' ? '#ffb347' : '#7df9ff'), s: 0.07, g: 0 });
         let hit = dead && s.k === 'rocket';
         for (const e of this.en) { if (e.dead || Math.hypot(e.x - s.x, e.z - s.z) > e.r + 0.5 || s.y < e.y - 0.4 || s.y > e.y + e.h + 0.5) continue; hit = true; if (s.k !== 'rocket') { this.damage(e, s.dmg, false, s.x - s.vx, s.z - s.vz); this.fx.ring(s.x, s.z, '#7df9ff', 1.6, s.y); Snd.play('hit'); } break; }
-        if (!hit) for (const c of this.crates) if (!c.dead && s.y < 1.7 && Math.hypot(c.x - s.x, c.z - s.z) < 1) { hit = true; if (s.k !== 'rocket') this.breakCrate(c); break; }
+        if (!hit) for (const b of this.bases) if (!b.dead && Math.hypot(b.x - s.x, b.z - s.z) < 3.4 && s.y < 18) { hit = true; if (s.k !== 'rocket') { this.damageBase(b, s.dmg); Snd.play('hit'); } break; }
+        if (!hit) for (const c of this.crates) if (!c.dead && Math.abs(s.y - (c.y || 0) - 0.7) < 1.2 && Math.hypot(c.x - s.x, c.z - s.z) < 1) { hit = true; if (s.k !== 'rocket') this.breakCrate(c); break; }
         if (!hit && (s.y < 0.1 || this.inSolid(s.x, s.y, s.z))) hit = true;
         if (hit) { dead = true; if (s.k === 'rocket') this.explode(s); else this.fx.spark(s.x, s.y, s.z, 5, '#7df9ff', 5); }
       } else if (s.k === 'orb') {
-        if (s.home > 0) { s.home -= dt; const dx = h.x - s.x, dy = h.y + 1 - s.y, dz = h.z - s.z, dl = Math.hypot(dx, dy, dz) || 1, k = Math.min(1, dt * 2.2); s.vx = lerp(s.vx, dx / dl * 14, k); s.vy = lerp(s.vy, dy / dl * 14, k); s.vz = lerp(s.vz, dz / dl * 14, k); }
+        if (s.home > 0) { s.home -= dt; const dx = h.x - s.x, dy = h.y + 1 - s.y, dz = h.z - s.z, dl = Math.hypot(dx, dy, dz) || 1, k = Math.min(1, dt * 2.2), sp = Math.hypot(s.vx, s.vy, s.vz); s.vx = lerp(s.vx, dx / dl * sp, k); s.vy = lerp(s.vy, dy / dl * sp, k); s.vz = lerp(s.vz, dz / dl * sp, k); }
         s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
-        if (Math.hypot(s.x - h.x, s.y - (h.y + 1), s.z - h.z) < 1.15) { this.hurtHero(s.dmg, s.x - s.vx, s.z - s.vz); dead = true; this.fx.spark(s.x, s.y, s.z, 10, '#b388ff'); }
+        if (Math.hypot(s.x - h.x, s.y - (h.y + 1), s.z - h.z) < (h.veh ? 2.8 : 1.15)) { this.hurtHero(s.dmg, s.x - s.vx, s.z - s.vz); dead = true; this.fx.spark(s.x, s.y, s.z, 10, '#b388ff'); }
         else if (s.y < 0.1 || this.inSolid(s.x, s.y, s.z)) dead = true;
       } else if (s.k === 'bomb') {
         s.vy -= s.g * dt; s.y += s.vy * dt;
@@ -274,10 +282,11 @@ Object.assign(World.prototype, {
     for (let i = this.picks.length - 1; i >= 0; i--) {
       const p = this.picks[i]; p.t += dt; const dx = h.x - p.x, dy = h.y + 1 - p.y, dz = h.z - p.z, d = Math.hypot(dx, dy, dz) || 0.01;
       if (p.t > 0.55 && (d < 7.5 || all)) { const v = 26, k = Math.min(1, dt * 9); p.vx = lerp(p.vx, dx / d * v, k); p.vy = lerp(p.vy, dy / d * v, k); p.vz = lerp(p.vz, dz / d * v, k); }
-      else { p.vy -= 26 * dt; p.vx *= 0.99; p.vz *= 0.99; if (p.y < 0.35 && p.vy < 0) { p.y = 0.35; p.vy *= -0.45; p.vx *= 0.7; p.vz *= 0.7; } }
+      else { p.vy -= 26 * dt; p.vx *= 0.99; p.vz *= 0.99; if (p.y < (p.f || 0) + 0.35 && p.vy < 0) { p.y = (p.f || 0) + 0.35; p.vy *= -0.45; p.vx *= 0.7; p.vz *= 0.7; } }
       p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
       if (d < 1.3 && p.t > 0.3) {
         if (p.k === 'coin') { S.coins += p.val; if (m) m.got.coins += p.val; this.coinPulse = 1; Snd.play('coin'); }
+        else if (p.k === 'core') { S.cores[p.kind] = (S.cores[p.kind] || 0) + 1; Snd.play('crystal'); this.text(h.x, h.y + 2.7, h.z, '+1 🤖 ' + ROBOTS[p.kind].name + ' core', '#5dff9a', 24); }
         else { const heal = Math.round(h.maxHp * 0.2); h.hp = Math.min(h.maxHp, h.hp + heal); Snd.play('heart'); this.text(h.x, h.y + 2.7, h.z, '+' + heal + ' ♥', '#ff8fa3', 26); }
         this.picks.splice(i, 1);
       } else if (p.t > 40) this.picks.splice(i, 1);
@@ -298,12 +307,12 @@ Object.assign(World.prototype, {
     // free roaming: patrol robots appear in districts the robots still control
     this.roamT -= dt; this.saveT = (this.saveT || 0) + dt; if (this.saveT > 20) { this.saveT = 0; Save.save(); }
     const zone = this.zoneOf(h.x, h.z);
-    if (zone >= 0 && !S.armor[zone] && this.roamT <= 0 && this.en.length < 3) {
+    if (zone >= 0 && !S.armor[zone] && !S.bases[zone] && this.roamT <= 0 && this.en.length < 3) {
       this.roamT = 3.5;
       for (let n = 0; n < 6; n++) {
         const a = rand(TAU), r = rand(26, 40); let x = h.x + Math.cos(a) * r, z = h.z + Math.sin(a) * r;
         if (Math.random() < 0.5) x = cellX(Math.round((x / CS + GC) / 3) * 3); else z = cellX(Math.round((z / CS + GC) / 3) * 3);
-        if (Math.abs(x) > WORLD_R - 6 || Math.abs(z) > WORLD_R - 6 || Math.max(Math.abs(x), Math.abs(z)) < 50 || this.blocked(x, z, 1.4) || Math.hypot(x - h.x, z - h.z) < 22) continue;
+        if (Math.abs(x) > WORLD_R - 6 || Math.abs(z) > WORLD_R - 6 || Math.max(Math.abs(x), Math.abs(z)) < 50 || this.inAirport(x, z) || this.nearBase(x, z, 18) || this.blocked(x, z, 1.4) || Math.hypot(x - h.x, z - h.z) < 22) continue;
         const e = this.spawn(pick(DISTRICTS[zone].pool), x, z, zone * 3 + 0.5); e.roam = true; e.aggro = false; e.yaw = rand(TAU); break;
       }
     }
@@ -313,6 +322,7 @@ Object.assign(World.prototype, {
   /* ---------------- missions ---------------- */
   startMission(stage, rumble) {
     const d = rumble ? -1 : Math.floor(stage / 3), a = rumble ? RUMBLE_AT : ARENAS[d], h = this.h, cx = cellX(a.i), cz = cellX(a.j);
+    if (h.veh) this.leaveVeh(true); h.chute = false;
     this.en = []; this.shots = []; this.boss = null; this.saidDizzy = false; this.combo = 0; this.maxCombo = 0; this.koT = 0;
     this.mis = { stage, d, rumble: !!rumble, cx, cz, R: ARENA_R, waves: rumble ? [] : makeWaves(stage), wi: -1, rw: 0, queue: [], state: 'intro', stT: 0, spawnT: 0, got: { coins: 0, xp: 0, robots: 0, hits: 0, math: 0 }, quizDone: false, crystal: null, saved: S.coins, diff: rumble ? 0 : stage, lv0: S.level, p0: Calc.power() };
     if (rumble || Math.hypot(h.x - cx, h.z - cz) > ARENA_R - 6) this.teleport(cx, cz + (rumble ? 0 : 18), Math.PI);
@@ -321,7 +331,7 @@ Object.assign(World.prototype, {
     else { const D = DISTRICTS[d]; this.setBanner(`${D.name}  ${d + 1}-${stage % 3 + 1}`, STAGE_NAMES[stage % 3] + ' mission', '#7df9ff'); say(S.stats.wins ? D.name + '. ' + STAGE_NAMES[stage % 3] + ' mission.' : 'Here they come! Press J to hit the robots!'); }
   },
   spawnBoss(id) {
-    const m = this.mis, e = this.spawn(id, m.cx, m.cz - m.R + 8, m.diff, true); this.boss = e; Music.play('boss'); Snd.play('warn');
+    const m = this.mis, e = this.spawn(id, m.cx, m.cz - m.R + 8, m.diff, true); if (!m.rumble && S.bases[m.d]) { e.hp *= 0.75; e.maxHp = e.hp; } this.boss = e; Music.play('boss'); Snd.play('warn');
     this.setBanner('⚠ BOSS: ' + e.name + ' ⚠', `Power Level ${e.power}  -  "${e.B.taunt}"`, '#ff6b5a', 3); say('Boss! ' + e.name + '. ' + e.B.taunt);
   },
   nextWave() {
@@ -381,26 +391,26 @@ Object.assign(World.prototype, {
   /* ---------------- drawing the fight ---------------- */
   drawCombat(t) {
     const h = this.h, m = this.mis;
-    for (const p of this.picks) { if (p.k === 'coin') coin3(p.x, p.y, p.z, p.t + p.x); else heart3(p.x, p.y, p.z, t); }
+    for (const p of this.picks) { if (p.k === 'coin') coin3(p.x, p.y, p.z, p.t + p.x); else if (p.k === 'core') core3(p.x, p.y, p.z, t); else heart3(p.x, p.y, p.z, t); }
     for (const s of this.shots) {
-      if (s.k === 'blast') { G3.abox(s.x, s.y, s.z, 0.13, 0.13, 0.13, WHITE, 1); G3.aglow(s.x, s.y, s.z, 0.4, 0.4, 0.4, C3('#39d0ff'), 0.9); }
-      else if (s.k === 'rocket') { G3.box(M4.ry(M4.t(ID4, s.x, s.y, s.z), Math.atan2(s.vx, s.vz)), 0.14, 0.14, 0.42, C3('#d9dde3')); G3.aglow(s.x, s.y, s.z, 0.45, 0.45, 0.45, C3('#ff7b3d'), 0.9); }
-      else if (s.k === 'orb') { G3.abox(s.x, s.y, s.z, 0.2, 0.2, 0.2, C3('#f1e6ff'), 1); G3.aglow(s.x, s.y, s.z, 0.55, 0.55, 0.55, C3('#b388ff'), 0.8); }
-      else if (s.k === 'bomb') { G3.abox(s.x, s.y, s.z, 0.3, 0.3, 0.3, C3('#23272f')); G3.abox(s.x, s.y + 0.32, s.z, 0.08, 0.05, 0.08, C3('#ff3b2f'), 1); G3.aglow(s.x, 0.12, s.z, 2.6, 0.06, 2.6, C3('#ff3b2f'), 0.3 + Math.sin(t * 20) * 0.15); }
-      else if (s.k === 'ring') { const n = 30, c = C3('#ff7b3d'); for (let i = 0; i < n; i++) { const a = i * TAU / n; G3.glow(M4.ry(M4.t(ID4, s.x + Math.cos(a) * s.rad, 0.35, s.z + Math.sin(a) * s.rad), -a), 0.25, 0.35, s.rad * 0.11, c, 0.9); } }
+      if (s.k === 'blast') { G3.amesh(s.x, s.y, s.z, SPX, 0.14, 0.14, 0.14, WHITE, 1); G3.agmesh(s.x, s.y, s.z, SPX, 0.45, 0.45, 0.45, C3(s.green ? '#5dff9a' : '#39d0ff'), 0.9); }
+      else if (s.k === 'rocket') { const rm = M4.rx(M4.ry(M4.t(ID4, s.x, s.y, s.z), Math.atan2(s.vx, s.vz)), HPI - Math.atan2(s.vy, Math.hypot(s.vx, s.vz))); G3.mesh(rm, CYX, 0.13, 0.42, 0.13, C3('#e6eaf0'), -0.7); G3.mesh(M4.t(rm, 0, 0.6, 0), CONE, 0.13, 0.18, 0.13, C3('#ff3b2f'), 0.4); G3.agmesh(s.x - s.vx * 0.012, s.y - s.vy * 0.012, s.z - s.vz * 0.012, SPX, 0.5, 0.5, 0.5, C3('#ff7b3d'), 0.9); }
+      else if (s.k === 'orb') { G3.amesh(s.x, s.y, s.z, SPX, 0.22, 0.22, 0.22, C3('#f1e6ff'), 1); G3.agmesh(s.x, s.y, s.z, SPX, 0.6, 0.6, 0.6, C3('#b388ff'), 0.8); }
+      else if (s.k === 'bomb') { G3.amesh(s.x, s.y, s.z, SPX, 0.32, 0.32, 0.32, C3('#23272f'), -0.6); G3.amesh(s.x, s.y + 0.3, s.z, SPX, 0.09, 0.09, 0.09, C3('#ff3b2f'), 1); G3.agmesh(s.x, 0.12, s.z, CYL, 2.7, 0.06, 2.7, C3('#ff3b2f'), 0.3 + Math.sin(t * 20) * 0.15); }
+      else if (s.k === 'ring') { const n = 30, c = C3('#ff7b3d'); for (let i = 0; i < n; i++) { const a = i * TAU / n; G3.agmesh(s.x + Math.cos(a) * s.rad, 0.35, s.z + Math.sin(a) * s.rad, SPX, 0.5 + s.rad * 0.05, 0.4, 0.5 + s.rad * 0.05, c, 0.9); } }
     }
     for (const e of this.en) if (e.boss) {
       if (e.state === 'wind' && e.atk === 'charge') G3.glow(M4.ry(M4.t(ID4, e.x + Math.sin(e.yaw) * 14, 0.12, e.z + Math.cos(e.yaw) * 14), e.yaw), 1.6, 0.05, 13, C3('#ff3b2f'), 0.3 + Math.sin(t * 24) * 0.15);
-      if (e.atk === 'laser' && (e.state === 'cast' || e.state === 'laser')) { const on = e.state === 'laser', bm = M4.ry(M4.t(ID4, e.x + Math.sin(e.yaw) * 24, 0.9, e.z + Math.cos(e.yaw) * 24), e.yaw); if (on) { G3.glow(bm, 0.55 + Math.sin(t * 60) * 0.1, 0.55, 23, C3('#ff3b2f'), 1.1); G3.glow(bm, 0.16, 0.16, 23, WHITE, 1.4); } else G3.glow(bm, 0.06, 0.06, 23, C3('#ff3b2f'), 0.5 + Math.sin(t * 30) * 0.3); }
+      if (e.atk === 'laser' && (e.state === 'cast' || e.state === 'laser')) { const on = e.state === 'laser', bm = M4.ry(M4.t(ID4, e.x + Math.sin(e.yaw) * 24, 0.9, e.z + Math.cos(e.yaw) * 24), e.yaw); const bc = M4.rx(bm, HPI); if (on) { const bw = 0.6 + Math.sin(t * 60) * 0.1; G3.gmesh(bc, CYL, bw, 23, bw, C3('#ff3b2f'), 1.1); G3.gmesh(bc, CYX, 0.18, 23, 0.18, WHITE, 1.4); } else G3.gmesh(bc, CYX, 0.07, 23, 0.07, C3('#ff3b2f'), 0.5 + Math.sin(t * 30) * 0.3); }
     }
     if (h.superT > 0) {
       const w = 0.9 + Math.sin(t * 70) * 0.2, bm = M4.ry(M4.t(ID4, h.x + Math.sin(h.yaw) * 22, h.y + 1.3, h.z + Math.cos(h.yaw) * 22), h.yaw);
-      G3.glow(bm, w, w, 21, C3(S.armor[4] ? '#b388ff' : '#39d0ff'), 1); G3.glow(bm, w * 0.35, w * 0.35, 21, WHITE, 1.5);
-      if (S.armor[4]) G3.aglow(h.x, h.y + 1, h.z, 12, 0.3, 12, C3('#b388ff'), 0.25);
+      const bc = M4.rx(bm, HPI); G3.gmesh(bc, CYL, w, 21, w, C3(S.armor[4] ? '#b388ff' : '#39d0ff'), 1); G3.gmesh(bc, CYX, w * 0.4, 21, w * 0.4, WHITE, 1.5);
+      if (S.armor[4]) G3.agmesh(h.x, h.y + 1, h.z, CYL, 12, 0.3, 12, C3('#b388ff'), 0.25);
     }
     if (m) {
       const c = C3(m.rumble ? '#ff5a5a' : DCOL[m.d]), n = 44, pulse = 0.35 + Math.sin(t * 3) * 0.1;
-      for (let i = 0; i < n; i++) { const a = i * TAU / n; G3.aglow(m.cx + Math.cos(a) * m.R, 2.2, m.cz + Math.sin(a) * m.R, 0.14, 2.2, 0.14, c, pulse); }
+      for (let i = 0; i < n; i++) { const a = i * TAU / n; G3.agmesh(m.cx + Math.cos(a) * m.R, 2.2, m.cz + Math.sin(a) * m.R, CYX, 0.14, 2.2, 0.14, c, pulse); }
       if (m.crystal) crystal3(m.crystal.x, 1.6, m.crystal.z, t);
     }
   },

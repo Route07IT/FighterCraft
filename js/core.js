@@ -21,7 +21,7 @@ const Input = {
   mouse: { x: 0, y: 0, clicked: false },
   map: {
     left: ['ArrowLeft', 'KeyA'], right: ['ArrowRight', 'KeyD'], up: ['ArrowUp', 'KeyW'], dn: ['ArrowDown', 'KeyS'],
-    jump: ['Space'], punch: ['KeyJ', 'KeyX'], blast: ['KeyK', 'KeyC'], super: ['KeyL', 'KeyV'], swapM: ['KeyQ'], swapR: ['KeyE'],
+    jump: ['Space'], punch: ['KeyJ', 'KeyX'], blast: ['KeyK', 'KeyC'], super: ['KeyL', 'KeyV'], swapM: ['KeyQ'], swapR: ['KeyE'], use: ['KeyF'], desc: ['ShiftLeft', 'ShiftRight'],
     pause: ['Escape', 'KeyP'], ok: ['Enter']
   },
   held(a) { return this.map[a].some(k => this.down[k]) || !!this.pad[a]; },
@@ -34,7 +34,7 @@ const Input = {
         const b = i => gp.buttons[i] && gp.buttons[i].pressed, ax = gp.axes;
         p.left = ax[0] < -0.4 || b(14); p.right = ax[0] > 0.4 || b(15);
         p.up = ax[1] < -0.5 || b(12); p.dn = ax[1] > 0.5 || b(13);
-        p.jump = b(0); p.punch = b(2); p.blast = b(1); p.super = b(3); p.swapM = b(4); p.swapR = b(5); p.pause = b(9); p.ok = b(0);
+        p.jump = b(0); p.punch = b(2); p.blast = b(1); p.super = b(7); p.use = b(3); p.desc = b(6); p.swapM = b(4); p.swapR = b(5); p.pause = b(9); p.ok = b(0);
       }
     } catch (e) { /* no gamepad */ }
     this.padHit = {};
@@ -163,6 +163,8 @@ function newSave() {
     name: 'Hero', suit: 0, level: 1, xp: 0, coins: 0,
     str: 1, spd: 1, foc: 1, strXp: 0, spdXp: 0, focXp: 0, mathTier: 1,
     armor: [false, false, false, false, false],
+    veh: { heli: false, jet: false }, bases: [false, false, false, false, false], // aircraft bought, robot bases destroyed
+    cores: {}, pal: null, palLv: {}, // robot cores collected, the active Robo-Pal and pal levels
     wp: { m: 'fist', r: 'blaster', own: {} }, // weapons: equipped close-up + blaster, and the ones bought
     stage: 0, stars: {}, bossDone: {},
     build: { workshop: 0, bank: 0, hospital: 0, plant: 0, park: 0 },
@@ -184,6 +186,7 @@ const Save = {
         S.stats = Object.assign(newSave().stats, d.stats || {});
         S.opts = Object.assign(newSave().opts, d.opts || {});
         S.wp = Object.assign(newSave().wp, d.wp || {});
+        S.veh = Object.assign(newSave().veh, d.veh || {});
       }
     } catch (e) { S = newSave(); }
   },

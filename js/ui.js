@@ -29,7 +29,7 @@ const UI = {
   badgeToasts(list) { list.forEach((b, i) => setTimeout(() => { UI.toast(`${b.icon} New badge: ${b.name}!`); Snd.play('levelup'); }, 400 + i * 900)); },
   touch(on) {
     touchEl.style.display = on && this.isTouch ? 'block' : 'none';
-    if (!on) ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'KeyK', 'KeyL'].forEach(k => { Input.down[k] = false; });
+    if (!on) ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space', 'KeyJ', 'KeyK', 'KeyL', 'KeyF', 'ShiftLeft'].forEach(k => { Input.down[k] = false; });
   },
   quiz(q, cb) {
     say(q.speak); let done = false;
@@ -100,6 +100,8 @@ touchEl.innerHTML = `<div class="stick"><i></i></div>
   <button class="tb" style="left:1140px;top:570px" data-k="KeyJ">👊</button>
   <button class="tb sm" style="left:1166px;top:452px" data-k="KeyK">💥</button>
   <button class="tb sm" style="left:1040px;top:478px" data-k="KeyL">⭐</button>
+  <button class="tb sm" style="left:920px;top:486px" data-k="KeyF">🚗</button>
+  <button class="tb xs" style="left:1196px;top:376px" data-k="ShiftLeft">⬇</button>
   <button class="tb xs" style="left:24px;top:170px" data-k="KeyQ">⚔️</button>
   <button class="tb xs" style="left:92px;top:170px" data-k="KeyE">🔫</button>
   <button class="tb pause" style="left:430px;top:16px" data-k="Escape">⏸</button>`;
