@@ -160,14 +160,16 @@ function hush() { try { if (window.speechSynthesis) speechSynthesis.cancel(); } 
 const SAVE_KEY = 'fightercraft.save.v1';
 function newSave() {
   return {
-    name: 'Hero', suit: 0, level: 1, xp: 0, coins: 0,
+    name: 'Hero', suit: 0, level: 1, xp: 0, coins: 2000, gift: 1, // every hero starts with a gift of 2000 coins
     str: 1, spd: 1, foc: 1, strXp: 0, spdXp: 0, focXp: 0, mathTier: 1,
     armor: [false, false, false, false, false],
     veh: { heli: false, jet: false }, bases: [false, false, false, false, false], // aircraft bought, robot bases destroyed
-    cores: {}, pal: null, palLv: {}, // robot cores collected, the active Robo-Pal and pal levels
+    cores: {}, pal: null, palLv: {},
+    bank: { sav: 0, sh: {}, px: {}, hist: {}, t: 0 }, house: 0, pets: {}, pet: null, fish: 0, friends: {}, // savings + shares, home, pets, fish caught, animal friends
+    // robot cores collected, the active Robo-Pal and pal levels
     wp: { m: 'fist', r: 'blaster', own: {} }, // weapons: equipped close-up + blaster, and the ones bought
     stage: 0, stars: {}, bossDone: {},
-    build: { workshop: 0, bank: 0, hospital: 0, plant: 0, park: 0 },
+    build: { workshop: 0, bank: 1, hospital: 0, plant: 0, park: 0 },
     badges: {},
     stats: { robots: 0, math: 0, bestCombo: 0, trainings: 0, noHit: 0, wins: 0, rumble: 0, built: 0 },
     opts: { sound: true, music: true, voice: true },
@@ -187,6 +189,8 @@ const Save = {
         S.opts = Object.assign(newSave().opts, d.opts || {});
         S.wp = Object.assign(newSave().wp, d.wp || {});
         S.veh = Object.assign(newSave().veh, d.veh || {});
+        S.bank = Object.assign(newSave().bank, d.bank || {}); if (S.build.bank < 1) S.build.bank = 1;
+        if (!d.gift) { S.coins += 2000; S.gift = 1; } // one-time gift for heroes who started before the gift existed
       }
     } catch (e) { S = newSave(); }
   },

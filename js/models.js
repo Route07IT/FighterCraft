@@ -25,6 +25,7 @@ function hero3(o) {
     case 'hover': lr = 0.2; ll = -0.2; kr = kl = 0.4; ar = 0.4; al = 0.4; arz = 0.5; alz = 0.5; lean = 0.45; break;
     case 'chute': lr = 0.15; ll = -0.1; kr = kl = 0.3; ar = 2.9; al = 2.9; arz = 0.35; alz = 0.35; er = el = 0.2; break;
     case 'climb': { const ph = t * 9, s = Math.sin(ph); ar = 2.3 + s * 0.5; al = 2.3 - s * 0.5; er = el = 0.6; lr = 0.7 + s * 0.4; ll = 0.7 - s * 0.4; kr = kl = 1.1; break; }
+    case 'swim': { const s = Math.sin(t * 6); ar = 2.7 + s * 0.9; al = 2.7 - s * 0.9; er = el = 0.25; lr = s * 0.35; ll = -s * 0.35; kr = kl = 0.25; break; }
     case 'atk1': if (W === 'hammer') { ar = lerp(3.0, 0.5, p); er = 0.2; lean = 0.3 * p; } else if (W === 'sword') { ar = 1.5; er = 0.15; twist = lerp(-1.0, 0.8, p); lean = 0.12; } else { ar = lerp(0.5, 1.6, k); er = lerp(1.6, 0.05, k); al = 0.5; el = 1.6; twist = 0.45 * k; lean = 0.14 * k; } lr = 0.4; ll = -0.4; kr = 0.3; break;
     case 'atk2': if (W === 'hammer') { ar = lerp(3.0, 0.5, p); er = 0.2; lean = 0.3 * p; } else if (W === 'sword') { ar = 1.5; er = 0.15; twist = lerp(0.8, -1.0, p); lean = 0.12; } else { al = lerp(0.5, 1.6, k); el = lerp(1.6, 0.05, k); ar = 0.5; er = 1.6; twist = -0.45 * k; lean = 0.14 * k; } lr = -0.4; ll = 0.4; kl = 0.3; break;
     case 'atk3': if (W === 'hammer') { ar = lerp(3.1, 0.3, p); al = lerp(3.1, 0.3, p); er = el = 0.2; lean = 0.45 * p; bob = 0.5 * k; } else if (W === 'sword') { ar = 1.55; er = 0.1; twist = p * TAU; bob = 0.15 * k; } else { ar = lerp(0.2, 2.7, k); er = lerp(1.4, 0.2, k); lean = 0.1; bob = 0.35 * k; } lr = 0.5; ll = -0.5; kr = 0.4; break;
@@ -33,7 +34,7 @@ function hero3(o) {
     case 'hurt': lean = -0.45; ar = -0.9; al = -0.9; lr = 0.4; ll = 0.1; kr = kl = 0.4; break;
     case 'win': { const w = Math.sin(t * 8) * 0.2; ar = 2.8 + w; al = 2.8 - w; arz = 0.3; alz = 0.3; er = el = 0.15; bob = Math.abs(Math.sin(t * 6)) * 0.3; break; }
   }
-  const m = M4.ry(M4.t(ID4, o.x, o.y + bob, o.z), o.yaw + twist);
+  let m = M4.ry(M4.t(ID4, o.x, o.y + bob, o.z), o.yaw + twist); if (o.pose === 'swim') m = M4.rx(M4.t(m, 0, 1.0, -0.7), 1.3); // lying flat in the water
   // legs
   for (const s of [-1, 1]) {
     const j1 = jnt(m, s * 0.1, 0.93, 0, s < 0 ? lr : ll, s * 0.03); seg3(j1, 0.44, 0.095, pants, SH);

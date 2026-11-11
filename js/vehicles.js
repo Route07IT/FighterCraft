@@ -23,10 +23,11 @@ Object.assign(World.prototype, {
     if (this.mis || this.koT > 0) return;
     if (h.veh) { if (Input.hit('use')) this.leaveVeh(false); return; }
     let bd = 99;
-    for (const v of this.vehs) { if (v.away > 0 || !this.owns(v)) continue; const d = Math.hypot(v.x - h.x, v.z - h.z), reach = v.type === 'car' ? 4.2 : 6; if (d < reach && d < bd && Math.abs(h.y - (v.type === 'jet' ? v.y - 1.25 : v.y)) < 2.5) { bd = d; this.nearVeh = v; } }
+    for (const v of this.vehs.concat(this.cars)) { if (v.away > 0 || !this.owns(v)) continue; const d = Math.hypot(v.x - h.x, v.z - h.z), reach = v.type === 'car' ? 4.2 : 6; if (d < reach && d < bd && Math.abs(h.y - (v.type === 'jet' ? v.y - 1.25 : v.y)) < 2.5) { bd = d; this.nearVeh = v; } }
     if (Input.hit('use')) {
       if (this.nearVeh) this.enterVeh(this.nearVeh);
-      else if (h.on && h.y < 0.5) { const car = this.vehs[0]; car.x = h.x; car.z = h.z; car.yaw = h.yaw; this.fx.smoke(h.x, 0.5, h.z, 8, '#dfe6f0'); this.enterVeh(car); } // BOLT brings the car
+      else if (this.nearAnimal) this.petAnimal(this.nearAnimal);
+      else if (h.on && h.y < 0.5 && !h.swim) { const car = this.vehs[0]; car.x = h.x; car.z = h.z; car.yaw = h.yaw; this.fx.smoke(h.x, 0.5, h.z, 8, '#dfe6f0'); this.enterVeh(car); } // BOLT brings the car
       else this.text(h.x, h.y + 2.6, h.z, 'Land first!', '#fff', 20);
     }
   },
@@ -61,10 +62,13 @@ Object.assign(World.prototype, {
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.combo = 0; } if (this.comboPop > 0) this.comboPop -= dt * 5;
     if (v.type === 'car') {
       const turbo = Input.held('punch') && up && h.en > 1; if (turbo) h.en -= 14 * dt;
-      v.speed += (up ? (turbo ? 32 : 20) : dn ? (v.speed > 0 ? -34 : -14) : 0) * dt; if (!up && !dn) v.speed *= Math.pow(0.3, dt); v.speed = clamp(v.speed, -10, turbo ? 37 : 25);
-      h.yaw = wrapA(h.yaw - turn * clamp(v.speed / 9, -1, 1) * 2.1 * dt);
+      const K = CAR_KINDS[v.kind || 'sports']; // every kind of car has its own speed and handling
+      v.speed += (up ? K.acc * (turbo ? 1.5 : 1) : dn ? (v.speed > 0 ? -34 : -14) : 0) * dt; if (!up && !dn) v.speed *= Math.pow(0.3, dt); v.speed = clamp(v.speed, -10, K.max * (turbo ? 1.4 : 1));
+      h.yaw = wrapA(h.yaw - turn * clamp(v.speed / 9, -1, 1) * K.turn * dt);
       h.x += sn() * v.speed * dt; h.z += cs() * v.speed * dt; h.y = 0;
       if (this.collide(h, 1.35)) { if (Math.abs(v.speed) > 12) { this.shake = Math.max(this.shake, 0.25); Snd.play('hit'); this.fx.spark(h.x + sn() * 2, 0.6, h.z + cs() * 2, 6, '#ffd23f'); } v.speed *= Math.abs(v.speed) > 5 ? 0.55 : 0.92; }
+      if (this.carBump(h, 1.5, v)) v.speed *= 0.6;
+      if (this.inWater(h.x + sn() * sign(v.speed) * 2.2, h.z + cs() * sign(v.speed) * 2.2)) { h.x -= sn() * v.speed * dt; h.z -= cs() * v.speed * dt; if (Math.abs(v.speed) > 3) this.text(h.x, 2.6, h.z, 'Cars cannot swim!', '#7df9ff', 22); v.speed = 0; }
       v.spin = (v.spin || 0) + v.speed * dt * 2.8;
       if (Math.abs(v.speed) > 6) for (const e of this.en) { if (e.dead || e.flying || (e.ramT || 0) > this.t || Math.hypot(e.x - h.x, e.z - h.z) > e.r + 1.6) continue; e.ramT = this.t + 0.5; this.damage(e, Math.abs(v.speed) * 1.6 + Calc.punch(), true); v.speed *= e.boss ? 0.3 : 0.8; Snd.play('bighit'); this.shake = Math.max(this.shake, 0.3); }
       for (const c of this.crates) if (!c.dead && !c.y && Math.hypot(c.x - h.x, c.z - h.z) < 1.9) this.breakCrate(c);
@@ -90,7 +94,7 @@ Object.assign(World.prototype, {
         const dodge = this.inSolid(ax, h.y - 1.5, az) || this.inSolid(h.x + sn() * v.speed * 0.5, h.y - 1.5, h.z + cs() * v.speed * 0.5);
         h.vy = lerp(h.vy, dodge ? 22 : ((up ? 1 : 0) - (dn ? 1 : 0)) * 17, Math.min(1, dt * (dodge ? 6 : 2.2))); v.pitch = lerp(v.pitch, -h.vy / 45, Math.min(1, dt * 3));
         h.y = clamp(h.y + h.vy * dt, 3, 175);
-        if (Math.hypot(h.x, h.z) > FLY_R) h.yaw = lerpA(h.yaw, Math.atan2(-h.x, -h.z), Math.min(1, dt * 1.3));
+        if (Math.hypot(h.x + 127, h.z - 85) > 520) h.yaw = lerpA(h.yaw, Math.atan2(-127 - h.x, 85 - h.z), Math.min(1, dt * 1.3));
         if (this.inSolid(h.x, h.y - 0.5, h.z)) { this.explode({ x: h.x, y: h.y, z: h.z, dmg: 0, rad: 7 }); this.leaveVeh(false); v.away = 14; h.inv = 2; this.setBanner('CRASH!', 'You ejected just in time. The jet will be repaired.', '#ff6b5a', 2.4); return; }
         if (h.y <= 3.2 && dn && this.inAirport(h.x, h.z) && Math.abs(h.x - AIR.rx) < 9) { v.air = false; h.y = 1.25; Snd.play('correct'); this.text(h.x, 4, h.z, 'Perfect landing!', '#5dff9a', 26); }
       }
@@ -105,7 +109,7 @@ Object.assign(World.prototype, {
       if (v.away > 0 || (!mine && (Math.abs(x - h.x) > 260 || Math.abs(z - h.z) > 260))) continue;
       const own = this.owns(v), c = own ? col : C3('#7a8090'), f = this.floorAt(x, z, y + 0.5);
       let m = M4.ry(M4.t(ID4, x, y, z), yaw);
-      if (v.type === 'car') { G3.shadow(x, 0.05, z, 2.6, 0.5); car3(m, c, v.spin, mine, false); }
+      if (v.type === 'car') { G3.shadow(x, 0.05, z, 2.6, 0.5); car3(m, c, v.spin, mine, false, 'sports'); }
       else if (v.type === 'heli') { G3.shadow(x, f + 0.05, z, 3.2 * clamp(1 - (y - f) / 60, 0.4, 1), 0.45 * clamp(1 - (y - f) / 60, 0.3, 1)); if (mine) m = M4.rz(M4.rx(m, v.tilt || 0), v.bank || 0); heli3(m, t, mine && v.on, c); }
       else { G3.shadow(x, f + 0.05, z, 4.5 * clamp(1 - (y - f) / 90, 0.4, 1), 0.45 * clamp(1 - (y - f) / 90, 0.25, 1)); if (mine) m = M4.rz(M4.rx(m, v.pitch || 0), v.roll || 0); jet3(m, t, mine ? v.burn || 0 : 0, !mine || !v.air, c); }
     }

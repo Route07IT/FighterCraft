@@ -38,7 +38,7 @@ const ARMOR = [
 /* City buildings: bought with coins. "city" = city level needed before it can be built. */
 const BUILDINGS = [
   { id: 'workshop', name: 'Workshop', icon: '🔧', city: 0, cost: [50, 140, 300], fx: 'Blast +4 and Punch +1 per level', tip: 'Engineers make your blaster stronger.' },
-  { id: 'bank', name: 'Bank', icon: '🏦', city: 0, cost: [60, 160, 340], fx: 'Saved coins earn +5% interest per level after every mission', tip: 'Smart heroes save! Coins you keep grow by themselves.' },
+  { id: 'bank', name: 'Bank', icon: '🏦', city: 0, cost: [60, 160, 340], fx: 'Savings in the bank grow faster with every level', tip: 'Smart heroes save! Go inside the bank to put coins in.' },
   { id: 'hospital', name: 'Hospital', icon: '🏥', city: 1, cost: [80, 190, 380], fx: 'Health +25 per level, more hearts drop', tip: 'Doctors keep the hero healthy.' },
   { id: 'plant', name: 'Power Plant', icon: '🔋', city: 2, cost: [100, 230, 440], fx: 'Energy refills faster', tip: 'Clean power for your blaster.' },
   { id: 'park', name: 'Hero Park', icon: '🌳', city: 3, cost: [120, 260, 500], fx: 'XP +10% per level - happy citizens cheer for you', tip: 'A happy city makes a stronger hero.' }
@@ -98,13 +98,18 @@ const BADGES = [
   { id: 'math100', icon: '🎓', name: 'Math Master', desc: 'Answer 100 brain questions correctly', ok: () => S.stats.math >= 100 },
   { id: 'train5', icon: '🥋', name: 'Hard Worker', desc: 'Finish 5 Dojo trainings', ok: () => S.stats.trainings >= 5 },
   { id: 'train25', icon: '🏋️', name: 'Never Give Up', desc: 'Finish 25 Dojo trainings', ok: () => S.stats.trainings >= 25 },
-  { id: 'save300', icon: '🐷', name: 'Super Saver', desc: 'Have 300 coins saved at once', ok: () => S.coins >= 300 },
+  { id: 'save300', icon: '🐷', name: 'Super Saver', desc: 'Save 300 coins in the bank', ok: () => S.bank.sav >= 300 },
   { id: 'build1', icon: '🏗️', name: 'City Builder', desc: 'Build your first building', ok: () => S.stats.built >= 1 },
   { id: 'mayor', icon: '🎩', name: 'Mayor', desc: 'Upgrade every building to level 3', ok: () => Calc.buildSum() >= 15 },
   { id: 'armor1', icon: '🥾', name: 'Armored Up', desc: 'Earn your first armor piece', ok: () => Calc.armorCount() >= 1 },
   { id: 'armor5', icon: '👑', name: 'Legend of the City', desc: 'Earn the full armor set', ok: () => Calc.armorCount() >= 5 },
   { id: 'lvl10', icon: '🌟', name: 'Level 10 Hero', desc: 'Reach hero level 10', ok: () => S.level >= 10 },
   { id: 'power200', icon: '⚡', name: 'Power 200', desc: 'Reach Power Level 200', ok: () => Calc.power() >= 200 },
+  { id: 'home', icon: '🏠', name: 'Home Owner', desc: 'Buy your own house', ok: () => S.house >= 1 },
+  { id: 'pet', icon: '🐶', name: 'Best Friend', desc: 'Get a pet', ok: () => Object.keys(S.pets).length >= 1 },
+  { id: 'fish10', icon: '🐟', name: 'Fisher', desc: 'Have 10 fish at once', ok: () => S.fish >= 10 },
+  { id: 'zoo', icon: '🐘', name: 'Animal Friend', desc: 'Pet all 5 kinds of jungle animals', ok: () => Object.keys(S.friends).length >= 5 },
+  { id: 'invest', icon: '📈', name: 'Investor', desc: 'Own shares in 3 companies', ok: () => Object.values(S.bank.sh).filter(n => n > 0).length >= 3 },
   { id: 'base1', icon: '📡', name: 'Base Buster', desc: 'Destroy a robot base', ok: () => S.bases.some(Boolean) },
   { id: 'pal1', icon: '🤖', name: 'Robot Friend', desc: 'Build your first Robo-Pal', ok: () => Object.keys(S.palLv).length >= 1 },
   { id: 'pilot', icon: '✈️', name: 'Ace Pilot', desc: 'Buy the fighter jet', ok: () => S.veh.jet },

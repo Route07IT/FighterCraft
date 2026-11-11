@@ -183,7 +183,7 @@ uniform vec3 uSun, uSunCol, uAmb, uFog, uCam, uLitA, uLitB; uniform float uFogD,
     gl.useProgram(this.prog);
     gl.uniformMatrix4fv(this.u.uVP, false, vp); gl.uniform3fv(this.u.uSun, env.sun); gl.uniform3fv(this.u.uSunCol, env.sunCol); gl.uniform3fv(this.u.uAmb, env.amb); gl.uniform3fv(this.u.uFog, env.fog);
     gl.uniform3fv(this.u.uCam, cam); gl.uniform3fv(this.u.uLitA, env.litA); gl.uniform3fv(this.u.uLitB, env.litB); gl.uniform1f(this.u.uFogD, env.fogD); gl.uniform1f(this.u.uAdd, 0); gl.uniform1f(this.u.uTime, env.time || 0);
-    if (this.sn) { gl.bindBuffer(gl.ARRAY_BUFFER, this.sbuf); this._attribs(); gl.drawArrays(gl.TRIANGLES, 0, this.sn); }
+    if (this.sn && !env.noStatic) { gl.bindBuffer(gl.ARRAY_BUFFER, this.sbuf); this._attribs(); gl.drawArrays(gl.TRIANGLES, 0, this.sn); }
     if (this.Sh.n) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); gl.uniform1f(this.u.uAdd, 2); this._draw(this.hbuf, this.Sh); gl.disable(gl.BLEND); gl.depthMask(true); gl.uniform1f(this.u.uAdd, 0); }
     this._draw(this.dbuf, this.D);
     if (this.A.n) { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false); gl.uniform1f(this.u.uAdd, 1); this._draw(this.abuf, this.A); gl.disable(gl.BLEND); gl.depthMask(true); }

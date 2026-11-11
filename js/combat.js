@@ -10,24 +10,24 @@ const B3 = { crusher: { r: 2.0, h: 5.3 }, viper: { r: 1.4, h: 5.7 }, warden: { r
 Object.assign(World.prototype, {
   /* ---------------- hero ---------------- */
   upHero(dt) {
-    const h = this.h, sp = Calc.speed() / 38, m = this.mis, alive = !(this.koT > 0) && !(m && (m.state === 'win' || m.state === 'lose')), ctl = alive && h.hurtT <= 0 && h.superT <= 0;
+    const h = this.h, wet = !h.chute && h.y < 0.7 && this.inWater(h.x, h.z), sp = Calc.speed() / 38 * (wet ? 0.5 : 1) * (h.fSpd > 0 ? 1.2 : 1) * (S.pet === 'bunny' ? 1.05 : 1), m = this.mis, alive = !(this.koT > 0) && !(m && (m.state === 'win' || m.state === 'lose')), ctl = alive && h.hurtT <= 0 && h.superT <= 0;
     const turn = ctl ? (Input.held('right') ? 1 : 0) - (Input.held('left') ? 1 : 0) : 0; let fw = ctl ? (Input.held('up') ? 1 : 0) - (Input.held('dn') ? 0.55 : 0) : 0;
-    h.yaw = wrapA(h.yaw - turn * 2.7 * dt); if (h.atk && h.on) fw *= 0.3; h.mv = fw;
+    h.swim = wet; h.yaw = wrapA(h.yaw - turn * 2.7 * dt); if (h.atk && h.on) fw *= 0.3; h.mv = fw;
     const k = 1 - Math.exp(-dt * (h.hurtT > 0 ? 3 : 12)); h.vx = lerp(h.vx, Math.sin(h.yaw) * fw * sp, k); h.vz = lerp(h.vz, Math.cos(h.yaw) * fw * sp, k);
-    if (ctl && Input.hit('jump')) {
+    if (ctl && !wet && Input.hit('jump')) {
       if (h.on) { h.vy = 9.4; h.on = false; h.jumps = 1; Snd.play('jump'); }
       else if (S.armor[0] && h.jumps < 2) { h.vy = 8.6; h.jumps = 2; Snd.play('jump'); this.fx.ring(h.x, h.z, '#39d0ff', 1.6, h.y); }
     }
     h.jet = false;
     if (ctl && S.armor[3] && !h.on && !h.climb && !h.chute && Input.held('jump') && h.vy < 3 && h.en > 2 && h.y < 90) { h.vy = Math.min(h.vy + 62 * dt, 6.5); h.en -= 20 * dt; h.jet = true; if (Math.random() < 0.5) this.fx.add({ k: 0, x: h.x - Math.sin(h.yaw) * 0.3, y: h.y + 0.9, z: h.z - Math.cos(h.yaw) * 0.3, vx: rand(-1, 1), vy: -6, vz: rand(-1, 1), life: 0.25, max: 0.25, c: C3('#ffb347'), s: 0.09, g: 0 }); }
-    h.vy -= 24 * dt; if (h.chute) h.vy = Math.max(h.vy, -7); h.y += h.vy * dt; h.x += h.vx * dt; h.z += h.vz * dt;
-    const wall = this.collide(h, 0.55); h.climb = false;
-    if (wall && ctl && Input.held('jump') && fw > 0 && wall.top > h.y + 0.3) { h.vy = 7.5; h.climb = true; h.on = false; h.jumps = 0; h.chute = false; } // climb any wall: run into it and hold JUMP
+    if (wet) { h.vy = 0; h.y = lerp(h.y, -1.15, Math.min(1, dt * 5)); } else { h.vy -= 24 * dt; if (h.chute) h.vy = Math.max(h.vy, -7); h.y += h.vy * dt; } h.x += h.vx * dt; h.z += h.vz * dt;
+    const wall = this.collide(h, 0.55); h.climb = false; this.carBump(h, 0.55);
+    if (wall && ctl && !wet && Input.held('jump') && fw > 0 && wall.top > h.y + 0.3) { const nx = clamp(h.x, wall.x0, wall.x1), nz = clamp(h.z, wall.z0, wall.z1); h.vy = 4.6; h.climb = true; h.on = false; h.jumps = 0; h.chute = false; h.rope = { x: lerp(nx, h.x, 0.45), z: lerp(nz, h.z, 0.45), top: wall.top }; h.yaw = lerpA(h.yaw, Math.atan2(nx - h.x, nz - h.z), Math.min(1, dt * 12)); } // climb any wall: run into it and hold JUMP
     if (m) { const dx = h.x - m.cx, dz = h.z - m.cz, d = Math.hypot(dx, dz); if (d > m.R - 1) { h.x = m.cx + dx / d * (m.R - 1); h.z = m.cz + dz / d * (m.R - 1); } }
     const f = this.floorAt(h.x, h.z, h.y);
-    if (h.y <= f) { if (!h.on && h.vy < -9) this.fx.smoke(h.x, f + 0.1, h.z, 2, '#c8c8d2'); h.y = f; h.vy = 0; h.on = true; h.jumps = 0; h.chute = false; } else if (h.y > f + 0.05) h.on = false;
+    if (wet) { h.on = true; h.jumps = 0; h.chute = false; } else if (h.y <= f) { if (!h.on && h.vy < -9) this.fx.smoke(h.x, f + 0.1, h.z, 2, '#c8c8d2'); h.y = f; h.vy = 0; h.on = true; h.jumps = 0; h.chute = false; } else if (h.y > f + 0.05) h.on = false;
     // attacks
-    if (ctl && (Input.hit('punch') || Input.mouse.clicked)) { if (!h.atk) this.startAtk(); else if (h.atk.t > h.atk.dur * 0.3) h.buf = true; }
+    if (ctl && !wet && (Input.hit('punch') || Input.mouse.clicked)) { if (!h.atk) this.startAtk(); else if (h.atk.t > h.atk.dur * 0.3) h.buf = true; }
     if (h.atk) {
       const a = h.atk; a.t += dt;
       if (!a.done && a.t >= a.hitAt) { a.done = true; this.heroHit(a); }
@@ -45,7 +45,7 @@ Object.assign(World.prototype, {
       }
     }
     if (h.blastT > 0) h.blastT -= dt; if (h.hurtT > 0) h.hurtT -= dt; if (h.inv > 0) h.inv -= dt; if (h.boost > 0) h.boost -= dt;
-    h.en = Math.min(h.maxEn, h.en + Calc.regen() * dt);
+    h.en = Math.min(h.maxEn, h.en + Calc.regen() * (h.fRegen > 0 ? 2 : 1) * dt);
     h.calm += dt; if (!m && h.calm > 6 && h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.05 * dt);
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.combo = 0; }
     if (this.comboPop > 0) this.comboPop -= dt * 5;
@@ -83,7 +83,7 @@ Object.assign(World.prototype, {
     if (id === 'tri') { mk(-0.2, 'blast', dm * 0.62, 30); mk(0, 'blast', dm * 0.62, 30); mk(0.2, 'blast', dm * 0.62, 30); } else if (id === 'rocket') mk(0, 'rocket', dm * 2, 21); else mk(0, 'blast', dm, 32);
   },
   gainXp(n) {
-    const ups = Calc.addXp(n);
+    const ups = Calc.addXp(Math.round(n * (this.h.fXp > 0 ? 1.2 : 1) * (S.pet === 'parrot' ? 1.1 : 1)));
     if (ups) { const h = this.h; this.refresh(false); h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.35); this.setBanner('⬆ LEVEL UP!', `You are now Level ${S.level}  •  Power ${Calc.power()}`, '#7df9ff', 2.2); Snd.play('levelup'); this.fx.ring(this.h.x, this.h.z, '#7df9ff', 6, this.h.y + 0.3); Save.save(); }
   },
   breakCrate(c) {
@@ -117,7 +117,7 @@ Object.assign(World.prototype, {
     S.stats.robots++; S.stats.bestCombo = Math.max(S.stats.bestCombo, this.maxCombo); if (m) { m.got.xp += xp; m.got.robots++; }
     this.dropCoins(e.x, cy, e.z, e.coins * (1 + e.diff * 0.12), e.boss ? 16 : 4);
     const low = this.h.hp < this.h.maxHp * 0.4;
-    if (Math.random() < (low ? 0.4 : 0.1) + S.build.hospital * 0.05 || e.boss) this.picks.push({ k: 'heart', x: e.x, y: cy, z: e.z, vx: rand(-2, 2), vy: 8, vz: rand(-2, 2), t: 0 });
+    if (Math.random() < (low ? 0.4 : 0.1) + S.build.hospital * 0.05 + (S.pet === 'cat' ? 0.08 : 0) || e.boss) this.picks.push({ k: 'heart', x: e.x, y: cy, z: e.z, vx: rand(-2, 2), vy: 8, vz: rand(-2, 2), t: 0 });
     if (!e.boss && Math.random() < 0.4) this.picks.push({ k: 'core', kind: e.kind, x: e.x, y: cy, z: e.z, vx: rand(-2, 2), vy: 9, vz: rand(-2, 2), t: 0 }); // a core: enough of them rebuild this robot as a Robo-Pal
     if (e.boss) { this.slow = 1.3; this.boss = null; Music.play('battle'); for (const o of this.en) if (!o.dead && o !== e) { o.hp = 0; this.kill(o); } if (m) m.queue = []; }
     this.gainXp(xp); UI.badgeToasts(checkBadges());
@@ -254,7 +254,7 @@ Object.assign(World.prototype, {
       if (s.f) {
         if (s.tgt && !s.tgt.dead) { const e = s.tgt, dx = e.x - s.x, dy = e.y + e.h * 0.5 - s.y, dz = e.z - s.z, d = Math.hypot(dx, dy, dz) || 1, sp = Math.hypot(s.vx, s.vy, s.vz), k = Math.min(1, dt * (s.k === 'rocket' ? 3 : 9)); s.vx = lerp(s.vx, dx / d * sp, k); s.vy = lerp(s.vy, dy / d * sp, k); s.vz = lerp(s.vz, dz / d * sp, k); }
         s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
-        if (Math.random() < 0.7) this.fx.add({ k: 0, x: s.x, y: s.y, z: s.z, vx: rand(-1, 1), vy: rand(-1, 1), vz: rand(-1, 1), life: 0.18, max: 0.18, c: C3(s.k === 'rocket' ? '#ffb347' : '#7df9ff'), s: 0.07, g: 0 });
+        if (s.k === 'rocket') { if (Math.random() < 0.8) this.fx.smoke(s.x - s.vx * 0.02, s.y - s.vy * 0.02, s.z - s.vz * 0.02, 1, '#c4c8d0'); } else if (Math.random() < 0.5) this.fx.add({ k: 0, x: s.x, y: s.y, z: s.z, vx: rand(-1, 1), vy: rand(-1, 1), vz: rand(-1, 1), life: 0.14, max: 0.14, c: C3('#7df9ff'), s: 0.035, g: 0 });
         let hit = dead && s.k === 'rocket';
         for (const e of this.en) { if (e.dead || Math.hypot(e.x - s.x, e.z - s.z) > e.r + 0.5 || s.y < e.y - 0.4 || s.y > e.y + e.h + 0.5) continue; hit = true; if (s.k !== 'rocket') { this.damage(e, s.dmg, false, s.x - s.vx, s.z - s.vz); this.fx.ring(s.x, s.z, '#7df9ff', 1.6, s.y); Snd.play('hit'); } break; }
         if (!hit) for (const b of this.bases) if (!b.dead && Math.hypot(b.x - s.x, b.z - s.z) < 3.4 && s.y < 18) { hit = true; if (s.k !== 'rocket') { this.damageBase(b, s.dmg); Snd.play('hit'); } break; }
@@ -281,7 +281,7 @@ Object.assign(World.prototype, {
     const h = this.h, m = this.mis, all = m && m.state !== 'fight';
     for (let i = this.picks.length - 1; i >= 0; i--) {
       const p = this.picks[i]; p.t += dt; const dx = h.x - p.x, dy = h.y + 1 - p.y, dz = h.z - p.z, d = Math.hypot(dx, dy, dz) || 0.01;
-      if (p.t > 0.55 && (d < 7.5 || all)) { const v = 26, k = Math.min(1, dt * 9); p.vx = lerp(p.vx, dx / d * v, k); p.vy = lerp(p.vy, dy / d * v, k); p.vz = lerp(p.vz, dz / d * v, k); }
+      if (p.t > 0.55 && (d < (S.pet === 'dog' ? 13 : 7.5) || all)) { const v = 26, k = Math.min(1, dt * 9); p.vx = lerp(p.vx, dx / d * v, k); p.vy = lerp(p.vy, dy / d * v, k); p.vz = lerp(p.vz, dz / d * v, k); }
       else { p.vy -= 26 * dt; p.vx *= 0.99; p.vz *= 0.99; if (p.y < (p.f || 0) + 0.35 && p.vy < 0) { p.y = (p.f || 0) + 0.35; p.vy *= -0.45; p.vx *= 0.7; p.vz *= 0.7; } }
       p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
       if (d < 1.3 && p.t > 0.3) {
@@ -371,7 +371,7 @@ Object.assign(World.prototype, {
   endMission() { this.mis = null; this.en = []; this.shots = []; this.boss = null; this.crates = this.crates.filter(c => !c.mis); this.refresh(true); },
   finishWin() {
     const m = this.mis, st = m.stage, first = !S.stars[st], stars = m.got.hits === 0 ? 3 : m.got.hits <= 4 ? 2 : 1, bonus = first ? 10 + st * 4 : 3;
-    const interest = Math.min(150 * S.build.bank, Math.floor(m.saved * S.build.bank * 0.05)); S.coins += interest; Calc.addXp(bonus);
+    const interest = 0; Calc.addXp(bonus);
     S.stats.wins++; S.stats.bestCombo = Math.max(S.stats.bestCombo, this.maxCombo); if (m.got.hits === 0) S.stats.noHit++;
     S.stars[st] = Math.max(S.stars[st] || 0, stars); if (st >= S.stage) S.stage = st + 1;
     let armor = null; if (st % 3 === 2 && !S.armor[m.d]) { S.armor[m.d] = true; armor = ARMOR[m.d]; S.pendingCity = Calc.cityLevel(); }
@@ -393,10 +393,10 @@ Object.assign(World.prototype, {
     const h = this.h, m = this.mis;
     for (const p of this.picks) { if (p.k === 'coin') coin3(p.x, p.y, p.z, p.t + p.x); else if (p.k === 'core') core3(p.x, p.y, p.z, t); else heart3(p.x, p.y, p.z, t); }
     for (const s of this.shots) {
-      if (s.k === 'blast') { G3.amesh(s.x, s.y, s.z, SPX, 0.14, 0.14, 0.14, WHITE, 1); G3.agmesh(s.x, s.y, s.z, SPX, 0.45, 0.45, 0.45, C3(s.green ? '#5dff9a' : '#39d0ff'), 0.9); }
-      else if (s.k === 'rocket') { const rm = M4.rx(M4.ry(M4.t(ID4, s.x, s.y, s.z), Math.atan2(s.vx, s.vz)), HPI - Math.atan2(s.vy, Math.hypot(s.vx, s.vz))); G3.mesh(rm, CYX, 0.13, 0.42, 0.13, C3('#e6eaf0'), -0.7); G3.mesh(M4.t(rm, 0, 0.6, 0), CONE, 0.13, 0.18, 0.13, C3('#ff3b2f'), 0.4); G3.agmesh(s.x - s.vx * 0.012, s.y - s.vy * 0.012, s.z - s.vz * 0.012, SPX, 0.5, 0.5, 0.5, C3('#ff7b3d'), 0.9); }
-      else if (s.k === 'orb') { G3.amesh(s.x, s.y, s.z, SPX, 0.22, 0.22, 0.22, C3('#f1e6ff'), 1); G3.agmesh(s.x, s.y, s.z, SPX, 0.6, 0.6, 0.6, C3('#b388ff'), 0.8); }
-      else if (s.k === 'bomb') { G3.amesh(s.x, s.y, s.z, SPX, 0.32, 0.32, 0.32, C3('#23272f'), -0.6); G3.amesh(s.x, s.y + 0.3, s.z, SPX, 0.09, 0.09, 0.09, C3('#ff3b2f'), 1); G3.agmesh(s.x, 0.12, s.z, CYL, 2.7, 0.06, 2.7, C3('#ff3b2f'), 0.3 + Math.sin(t * 20) * 0.15); }
+      if (s.k === 'blast') { G3.amesh(s.x, s.y, s.z, SPT, 0.07, 0.07, 0.07, WHITE, 1); G3.agmesh(s.x, s.y, s.z, SPT, 0.2, 0.2, 0.2, C3(s.green ? '#5dff9a' : '#39d0ff'), 0.9); }
+      else if (s.k === 'rocket') { rocket3(s, t); }
+      else if (s.k === 'orb') { G3.amesh(s.x, s.y, s.z, SPT, 0.11, 0.11, 0.11, C3('#f1e6ff'), 1); G3.agmesh(s.x, s.y, s.z, SPT, 0.28, 0.28, 0.28, C3('#b388ff'), 0.8); }
+      else if (s.k === 'bomb') { G3.amesh(s.x, s.y, s.z, SPX, 0.2, 0.2, 0.2, C3('#23272f'), -0.6); G3.amesh(s.x, s.y + 0.19, s.z, SPT, 0.06, 0.06, 0.06, C3('#ff3b2f'), 1); G3.agmesh(s.x, 0.12, s.z, CYL, 2.7, 0.06, 2.7, C3('#ff3b2f'), 0.3 + Math.sin(t * 20) * 0.15); }
       else if (s.k === 'ring') { const n = 30, c = C3('#ff7b3d'); for (let i = 0; i < n; i++) { const a = i * TAU / n; G3.agmesh(s.x + Math.cos(a) * s.rad, 0.35, s.z + Math.sin(a) * s.rad, SPX, 0.5 + s.rad * 0.05, 0.4, 0.5 + s.rad * 0.05, c, 0.9); } }
     }
     for (const e of this.en) if (e.boss) {

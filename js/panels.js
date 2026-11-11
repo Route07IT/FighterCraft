@@ -7,10 +7,12 @@
 Object.assign(World.prototype, {
   closePanel() { this.panel = null; this.preview = -1; this.camFront = false; UI.clear(); UI.touch(true); Input.pressed = {}; Input.mouse.clicked = false; this.refresh(false); Save.save(); },
   openPanel(id) {
+    if (id === 'house' && !S.house) id = 'housebuy';
+    if (this.canEnter(id)) { this.enterRoom(id); return; } // some places are real rooms you walk around in
     this.panel = id; this.camFront = false; UI.touch(false); hush(); Input.down = {};
-    const X = '<button class="x" data-act="close" data-key="esc">✕</button>', p = Calc.power(); let html = '';
+    const X = '<button class="x" data-act="close" data-key="esc">✕</button>', p = Calc.power(); let html = this.placePanel(id, X) || '';
     const suits = () => `<div class="suits">${SUITS.map((s, i) => `<button class="suit ${i === S.suit ? 'on' : ''}" style="background:${s[0]}" data-act="suit" data-arg="${i}"></button>`).join('')}</div>`;
-    if (/^d\d$/.test(id)) {
+    if (html) { /* a panel from places.js */ } else if (/^d\d$/.test(id)) {
       const d = +id[1], D = DISTRICTS[d], open = S.stage >= d * 3; let rows = '';
       for (let s = 0; s < 3; s++) {
         const i = d * 3 + s, rec = Calc.recPower(i), st = S.stars[i] || 0, cls = p >= rec ? 'ok' : p >= rec * 0.8 ? 'mid' : 'hard';
@@ -62,15 +64,16 @@ Object.assign(World.prototype, {
         <div class="brow"><button class="btn" data-act="full">⛶ Full screen</button><button class="btn red" data-act="reset">🗑️ Start over</button></div>
         <div class="sub">↑ run • ← → turn • SPACE jump (run into a wall and hold it to climb) • F car / get in or out<br>J hit • K blast • L super • Q / E swap weapons • SHIFT helicopter down • ESC pause</div></div></div>`;
     } else { // a city building you can build and upgrade
-      const b = BUILDINGS.find(x => x.id === id), lv = S.build[id], can = this.canBuild(b), cost = b.cost[lv];
+      id = id.replace('b_', ''); const b = BUILDINGS.find(x => x.id === id), lv = S.build[id], can = this.canBuild(b), cost = b.cost[lv];
       const btn = can === 'max' ? '<div class="tag gold">★ MAX LEVEL</div>' : can === 'city' ? `<div class="tag lock">🔒 Needs City Level ${b.city} - earn more armor!</div>` : can === 'cap' ? '<div class="tag lock">🔒 Earn the next armor to upgrade more</div>' : `<button class="btn ${S.coins >= cost ? 'gold' : 'gray'}" data-act="buy" data-arg="${id}" ${id === 'workshop' && lv ? '' : 'data-key="enter"'}><i class="coin"></i> ${cost} &nbsp; ${lv ? 'UPGRADE' : 'BUILD IT!'}</button>`;
       let extra = '';
-      if (id === 'workshop' && lv) {
+      if (id === 'workshop-old') {
         const row = (slot, k, w) => { const own = !w.cost || S.wp.own[k], eq = S.wp[slot] === k; const bt = own ? (eq ? '<div class="tag gold">✓ USING</div>' : `<button class="btn" data-act="wequip" data-arg="${slot}:${k}">USE</button>`) : S.build.workshop < w.lv ? `<div class="tag lock">🔒 Workshop Lv ${w.lv}</div>` : `<button class="btn ${S.coins >= w.cost ? 'gold' : 'gray'}" data-act="wbuy" data-arg="${slot}:${k}"><i class="coin"></i> ${w.cost}</button>`; return `<div class="wrow"><span class="aicon" style="background:#2b3a66">${w.icon}</span><span class="ainfo"><b>${w.name}</b><small>${w.desc}</small></span>${bt}</div>`; };
         extra = `<div class="wgrid"><div><h3>⚔️ Close-up weapons <small>swap with Q</small></h3>${Object.keys(MELEE).map(k => row('m', k, MELEE[k])).join('')}</div><div><h3>🔫 Blasters <small>swap with E</small></h3>${Object.keys(RANGED).map(k => row('r', k, RANGED[k])).join('')}</div></div>`;
-      } else if (id === 'bank' && lv) extra = `<p class="sub">🐷 You have <b>${S.coins}</b> coins saved. After your next mission the Bank adds <b style="color:#ffe14d">+${Math.min(150 * lv, Math.floor(S.coins * lv * 0.05))}</b> interest. The more you save, the more you get!</p>`;
+      } else if (id === 'workshop' && lv) extra = '<p class="sub">⚔️ Weapons are sold at the HERO GEAR shop on Market Street, just east of the plaza.</p>';
+      else if (id === 'bank') extra = `<p class="sub">🏦 A bigger bank pays more: savings grow by <b>${(0.4 + 0.2 * lv).toFixed(1)}%</b> every little while.</p>`;
       else if (id === 'hospital' && lv) { const h = this.h; if (h.hp < h.maxHp) { h.hp = h.maxHp; Snd.play('heart'); } extra = '<p class="sub">💚 The doctors healed you. Your health is full!</p>'; }
-      html = `<div class="dim lite"><div class="panel" style="width:${id === 'workshop' && lv ? 1040 : 640}px">${X}<h2>${b.icon} ${b.name.toUpperCase()}</h2>
+      html = `<div class="dim lite"><div class="panel" style="width:660px">${X}<h2>${b.icon} ${b.name.toUpperCase()}</h2>
         <div class="bcard"><div class="pips">${[0, 1, 2].map(i => `<i class="${i < lv ? 'on' : ''}"></i>`).join('')}</div><div class="binfo"><b>${b.fx}</b><small>${b.tip}</small></div>${btn}</div>
         <div class="coinsline"><i class="coin"></i> You have ${S.coins} coins &nbsp;•&nbsp; City Level ${this.L}: ${CITY_NAMES[this.L]}</div>${extra}</div></div>`;
     }
@@ -79,6 +82,7 @@ Object.assign(World.prototype, {
   },
   act(a, arg, btn) {
     const id = this.panel;
+    if (this.placeAct(a, arg)) return;
     switch (a) {
       case 'close': this.closePanel(); break;
       case 'stage': this.closePanel(); this.startMission(+arg); break;
@@ -88,7 +92,7 @@ Object.assign(World.prototype, {
       case 'try': this.preview = +arg; Snd.play('crystal'); say(ARMOR[+arg].name + '. ' + ARMOR[+arg].power); break;
       case 'power': case 'badges': case 'settings': this.openPanel(a); break;
       case 'opt': S.opts[arg] = !S.opts[arg]; if (!S.opts.voice) hush(); Save.save(); this.openPanel('settings'); break;
-      case 'suit': S.suit = +arg; Save.save(); this.openPanel('settings'); break;
+      case 'suit': S.suit = +arg; Save.save(); this.openPanel(id === 'wardrobe' ? 'wardrobe' : 'settings'); break;
       case 'full': toggleFull(); break;
       case 'reset': if (btn.dataset.sure) { Save.reset(); WORLD = null; Game.go(new Title()); } else { btn.dataset.sure = '1'; btn.textContent = '⚠ Press again to erase everything'; } break;
       case 'abandon': this.closePanel(); this.endMission(); Music.play('hub'); this.setBanner('Mission stopped', 'Come back when you are ready!', '#ffffff', 1.8); break;
@@ -100,7 +104,7 @@ Object.assign(World.prototype, {
         const b = BUILDINGS.find(x => x.id === arg), cost = b.cost[S.build[arg]];
         if (this.canBuild(b) !== true) break;
         if (S.coins < cost) { Snd.play('wrong'); UI.toast(`You need ${cost - S.coins} more coins. Beat robots and smash crates!`); say('You need more coins. Beat robots and smash crates!'); break; }
-        S.coins -= cost; S.build[arg]++; S.stats.built++; Snd.play('build'); this.build(); this.refresh(false);
+        S.coins -= cost; S.build[arg]++; S.stats.built++; Snd.play('build'); this.build(); this.refresh(false); this.gainXp(20 + S.build[arg] * 15); // building things gives XP too
         const got = checkBadges(); Save.save(); UI.toast(`${b.icon} ${b.name} is now level ${S.build[arg]}!`); UI.badgeToasts(got);
         const sp = SPOTS.find(s => s.id === arg); for (let i = 0; i < 5; i++) this.fx.spark(sp.x + rand(-4, 4), rand(2, 7), sp.z + rand(-4, 4), 14, '#ffd23f', 8);
         this.openPanel(arg); say(`${b.name} level ${S.build[arg]}! ${b.tip}`);
