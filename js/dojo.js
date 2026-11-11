@@ -28,7 +28,7 @@ class Dojo {
   }
   enter() { Music.play('dojo'); this.quitUi(); say(this.info.intro); }
   exit() { hush(); }
-  quitUi() { UI.set('<button class="mini quit" data-act="hub">✕ Quit</button>', () => { Game.go(new Hub()); return true; }); }
+  quitUi() { UI.set('<button class="mini quit" data-act="hub">✕ Quit</button>', () => { goWorld(); return true; }); }
   padInput() { // which pad was chosen this frame? arrows, WASD, mouse or touch
     if (Input.hit('left')) return 0; if (Input.hit('up')) return 1; if (Input.hit('right')) return 2; if (Input.hit('dn')) return 3;
     if (Input.mouse.clicked) for (let i = 0; i < 4; i++) if (Math.hypot(Input.mouse.x - this.pads[i][0], Input.mouse.y - this.pads[i][1]) < 105) return i;
@@ -37,7 +37,7 @@ class Dojo {
   update(dt) {
     this.t += dt; this.pt += dt; this.fx.update(dt);
     if (this.phase === 'done') return;
-    if (Input.hit('pause')) { Game.go(new Hub()); return; }
+    if (Input.hit('pause')) { goWorld(); return; }
     if (this.phase === 'intro') { if (this.pt > 2.4 || (this.pt > 0.6 && (Input.hit('ok') || Input.mouse.clicked))) this.begin(); return; }
     this['up_' + this.kind](dt);
   }
@@ -50,7 +50,7 @@ class Dojo {
     UI.set(`<button class="mini quit" data-act="hub">✕ Quit</button>
       <div class="q-top"><div class="q-text">${q.text}</div><button class="mini" data-act="speak">🔊</button></div>
       ${q.answers.map((a, i) => `<button class="bag-btn" style="left:${this.bagX[i] - 75}px" data-act="ans" data-arg="${i}" data-key="${i + 1}">${a}</button>`).join('')}`,
-      (a, arg, btn) => { if (a === 'ans') this.answer(+arg, btn); else if (a === 'speak') say(q.speak); else Game.go(new Hub()); return true; });
+      (a, arg, btn) => { if (a === 'ans') this.answer(+arg, btn); else if (a === 'speak') say(q.speak); else goWorld(); return true; });
   }
   answer(i, btn) {
     if (this.phase !== 'ask') return;

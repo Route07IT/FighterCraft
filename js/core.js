@@ -3,6 +3,7 @@
    FIGHTER CRAFT - core: helpers, input, sound, voice, save, power math
    ============================================================ */
 const W = 1280, H = 720, TAU = Math.PI * 2, GROUND = 612;
+const FONT = 'Bahnschrift, "Segoe UI", Arial';
 const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 const lerp = (a, b, t) => a + (b - a) * t;
 const rand = (a = 1, b) => b === undefined ? Math.random() * a : a + Math.random() * (b - a);
@@ -20,7 +21,7 @@ const Input = {
   mouse: { x: 0, y: 0, clicked: false },
   map: {
     left: ['ArrowLeft', 'KeyA'], right: ['ArrowRight', 'KeyD'], up: ['ArrowUp', 'KeyW'], dn: ['ArrowDown', 'KeyS'],
-    jump: ['Space', 'ArrowUp', 'KeyW'], punch: ['KeyJ', 'KeyX'], blast: ['KeyK', 'KeyC'], super: ['KeyL', 'KeyV'],
+    jump: ['Space'], punch: ['KeyJ', 'KeyX'], blast: ['KeyK', 'KeyC'], super: ['KeyL', 'KeyV'], swapM: ['KeyQ'], swapR: ['KeyE'],
     pause: ['Escape', 'KeyP'], ok: ['Enter']
   },
   held(a) { return this.map[a].some(k => this.down[k]) || !!this.pad[a]; },
@@ -33,7 +34,7 @@ const Input = {
         const b = i => gp.buttons[i] && gp.buttons[i].pressed, ax = gp.axes;
         p.left = ax[0] < -0.4 || b(14); p.right = ax[0] > 0.4 || b(15);
         p.up = ax[1] < -0.5 || b(12); p.dn = ax[1] > 0.5 || b(13);
-        p.jump = b(0); p.punch = b(2); p.blast = b(1); p.super = b(3) || b(5); p.pause = b(9); p.ok = b(0);
+        p.jump = b(0); p.punch = b(2); p.blast = b(1); p.super = b(3); p.swapM = b(4); p.swapR = b(5); p.pause = b(9); p.ok = b(0);
       }
     } catch (e) { /* no gamepad */ }
     this.padHit = {};
@@ -162,6 +163,7 @@ function newSave() {
     name: 'Hero', suit: 0, level: 1, xp: 0, coins: 0,
     str: 1, spd: 1, foc: 1, strXp: 0, spdXp: 0, focXp: 0, mathTier: 1,
     armor: [false, false, false, false, false],
+    wp: { m: 'fist', r: 'blaster', own: {} }, // weapons: equipped close-up + blaster, and the ones bought
     stage: 0, stars: {}, bossDone: {},
     build: { workshop: 0, bank: 0, hospital: 0, plant: 0, park: 0 },
     badges: {},
@@ -181,6 +183,7 @@ const Save = {
         S.build = Object.assign(newSave().build, d.build || {});
         S.stats = Object.assign(newSave().stats, d.stats || {});
         S.opts = Object.assign(newSave().opts, d.opts || {});
+        S.wp = Object.assign(newSave().wp, d.wp || {});
       }
     } catch (e) { S = newSave(); }
   },
@@ -212,7 +215,7 @@ const Calc = {
   regen() { return 9 + S.build.plant * 4; },
   xpNeed(l = S.level) { return 50 + (l - 1) * 35; },
   statNeed(l) { return 6 + l * 4; },
-  recPower(stage) { return Math.round(22 + stage * 21); },
+  recPower(stage) { return Math.round(22 + stage * 21 + stage * stage * 0.4); },
   /* gives XP, returns how many levels were gained */
   addXp(n) {
     n = Math.round(n * (1 + S.build.park * 0.1));

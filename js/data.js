@@ -9,28 +9,22 @@ const CITY_NAMES = ['Dark Ruins', 'Lights On!', 'Neon Nights', 'Sky City', 'Gree
 /* 5 districts, each with 3 missions. The 3rd mission has the boss who guards an armor piece. */
 const DISTRICTS = [
   {
-    name: 'Rusty Harbor', icon: '⚓', boss: 'crusher', pool: ['scrapper', 'scrapper', 'roller'],
-    theme: { sky: ['#2b1d3a', '#b5523b', '#ffb26b'], far: '#6b3d48', mid: '#3d2431', win: ['#ffcf7a'], lit: 0.14, road: ['#4a3f4a', '#2a242c'], line: '#c9a15a', sun: { x: 930, y: 380, r: 70, c: '#ffd9a0' }, feat: 'cranes', weather: 'dust', lamp: '#ffb347' }
+    name: 'Rusty Harbor', icon: '⚓', boss: 'crusher', pool: ['scrapper', 'scrapper', 'roller']
   },
   {
-    name: 'Neon Market', icon: '🏮', boss: 'viper', pool: ['scrapper', 'roller', 'zapper', 'zapper'],
-    theme: { sky: ['#07081c', '#1f1147', '#5a2278'], far: '#221a52', mid: '#130f2e', win: ['#ff3df2', '#3df2ff', '#ffe14d'], lit: 0.4, road: ['#2a2540', '#12101f'], line: '#ff3df2', sun: { x: 300, y: 150, r: 38, c: '#e8e4ff' }, feat: 'neon', weather: 'rain', lamp: '#3df2ff' }
+    name: 'Neon Market', icon: '🏮', boss: 'viper', pool: ['scrapper', 'roller', 'zapper', 'zapper']
   },
   {
-    name: 'Sky Bridge', icon: '🌉', boss: 'warden', pool: ['scrapper', 'zapper', 'drone', 'drone', 'roller'],
-    theme: { sky: ['#2f7fd6', '#8fd0ff', '#e6f6ff'], far: '#9db9d8', mid: '#5c7da3', win: ['#eaf7ff'], lit: 0.3, road: ['#8c97a8', '#5b6474'], line: '#f4f7fb', sun: { x: 1020, y: 130, r: 55, c: '#fffbe0' }, feat: 'clouds', weather: 'none', lamp: '#ffffff' }
+    name: 'Sky Bridge', icon: '🌉', boss: 'warden', pool: ['scrapper', 'zapper', 'drone', 'drone', 'roller']
   },
   {
-    name: 'Furnace Works', icon: '🏭', boss: 'furnace', pool: ['scrapper', 'brute', 'zapper', 'drone', 'roller'],
-    theme: { sky: ['#0d1810', '#274d2a', '#9bbf3b'], far: '#24402a', mid: '#14241a', win: ['#c8ff5a', '#ff9a3d'], lit: 0.22, road: ['#2f3a30', '#161d17'], line: '#c8ff5a', sun: { x: 640, y: 420, r: 90, c: '#d9f27a' }, feat: 'stacks', weather: 'embers', lamp: '#c8ff5a' }
+    name: 'Furnace Works', icon: '🏭', boss: 'furnace', pool: ['scrapper', 'brute', 'zapper', 'drone', 'roller']
   },
   {
-    name: 'Core Tower', icon: '🗼', boss: 'corex', pool: ['brute', 'zapper', 'drone', 'roller', 'scrapper', 'brute'],
-    theme: { sky: ['#12060a', '#4a0f1c', '#b0283a'], far: '#34111a', mid: '#1c080e', win: ['#ff5a5a', '#ffb347'], lit: 0.28, road: ['#33222a', '#160c11'], line: '#ff5a5a', sun: { x: 640, y: 300, r: 0, c: '#fff' }, feat: 'tower', weather: 'storm', lamp: '#ff5a5a' }
+    name: 'Core Tower', icon: '🗼', boss: 'corex', pool: ['brute', 'zapper', 'drone', 'roller', 'scrapper', 'brute']
   }
 ];
 const STAGE_NAMES = ['Patrol', 'Clean-Up', 'BOSS'];
-const RUMBLE_THEME = { sky: ['#0b1026', '#27306b', '#f08a5d'], far: '#2c3566', mid: '#161b3d', win: ['#ffe14d', '#3df2ff'], lit: 0.35, road: ['#343a5c', '#171a2e'], line: '#ffe14d', sun: { x: 640, y: 400, r: 80, c: '#ffd9a0' }, feat: 'neon', weather: 'embers', lamp: '#ffe14d' };
 
 /* Armor is never bought - it is EARNED by beating a boss. Each piece also upgrades the city. */
 const ARMOR = [
