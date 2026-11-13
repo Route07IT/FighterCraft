@@ -2,7 +2,7 @@
 // Usage: node tools/serve.js   ->  http://localhost:8377
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), port = 8377;
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.ico': 'image/x-icon', '.webmanifest': 'application/manifest+json', '.json': 'application/json' };
 http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p === '/') p = '/index.html';
   const file = path.join(root, p);

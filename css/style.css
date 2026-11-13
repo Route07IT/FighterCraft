@@ -194,3 +194,6 @@ h3 small { display: inline; font-size: 14px; color: #a9b8d8; margin-left: 8px; }
 .wrow .ainfo { flex: 1; } .wrow .ainfo b { font-size: 19px; } .wrow .ainfo small { font-size: 13px; }
 .wrow .aicon { width: 46px; height: 46px; font-size: 26px; }
 .wrow .btn { font-size: 17px; padding: 8px 14px; white-space: nowrap; } .wrow .tag { width: auto; white-space: nowrap; }
+.madeby { font-size: 24px; font-weight: 700; color: #dfe9ff; text-shadow: 0 2px 6px #000; margin: -8px 0 4px; letter-spacing: .5px; }
+.madeby b { color: #ffe14d; }
+html, body { position: fixed; inset: 0; width: 100%; overscroll-behavior: none; }

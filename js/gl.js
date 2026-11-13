@@ -1,15 +1,15 @@
 'use strict';
 /* ============================================================
    FIGHTER CRAFT - a tiny 3D engine (WebGL, no libraries).
-   Shapes: boxes plus smooth spheres, cylinders and cones, so
-   characters and vehicles look rounded instead of blocky.
+   Shapes: boxes, spheres, cylinders, cones and "lofts" (a skin
+   stretched over a stack of rings - used for human bodies).
      - static shapes (the city) are uploaded once
      - dynamic shapes (hero, robots, vehicles, sparks) are rebuilt every frame
      - "glow" shapes are drawn with additive light (beams, beacons, flames)
      - soft round shadows are blended onto the ground
    Material (4th colour number): 0..1 glows by itself, below 0 is shiny
-   metal/paint, 2..7 is a building wall with windows, 9 asphalt, 10 paving,
-   11 grass, 12 water.
+   metal/paint, 2..7.9 is a building wall (district + 0.1 x facade style),
+   9 asphalt, 10 paving, 11 grass, 12 water, 13 rock.
    ============================================================ */
 const M4 = { // 4x4 matrices, column-major
   id() { return [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]; },
@@ -50,6 +50,23 @@ function mkCyl(seg, rTop) { // radius 1 at the bottom (y=-1), rTop at the top (y
   }
   return { p: new Float32Array(P), q: new Float32Array(Q), n: P.length / 3 };
 }
+/* a skin over a stack of rings. Each ring is [y, radiusX, radiusZ, centreX, centreZ].
+   pow 2 gives round cross-sections (bodies), 4 gives rounded-box ones (machines). */
+function mkLoft(rings, seg = 12, pow = 2) {
+  const P = [], Q = [], R = rings.length, e = 2 / pow, T = Math.PI * 2;
+  const pt = (i, a) => { const r = rings[i], c = Math.cos(a), s = Math.sin(a); return [(r[3] || 0) + Math.sign(c) * Math.pow(Math.abs(c), e) * r[1], r[0], (r[4] || 0) + Math.sign(s) * Math.pow(Math.abs(s), e) * r[2]]; };
+  const nr = (i, a) => {
+    const p1 = pt(i, a + 0.02), p0 = pt(i, a - 0.02), up = pt(Math.min(R - 1, i + 1), a), dn = pt(Math.max(0, i - 1), a), ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2], bx = up[0] - dn[0], by = up[1] - dn[1], bz = up[2] - dn[2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx; const p = pt(i, a), r = rings[i]; if (nx * (p[0] - (r[3] || 0)) + nz * (p[2] - (r[4] || 0)) < 0) { nx = -nx; ny = -ny; nz = -nz; }
+    const l = Math.hypot(nx, ny, nz) || 1; return [nx / l, ny / l, nz / l];
+  };
+  for (let i = 0; i < R - 1; i++) for (let k = 0; k < seg; k++) {
+    const a0 = k / seg * T, a1 = (k + 1) / seg * T, A = pt(i, a0), B = pt(i, a1), C = pt(i + 1, a1), D = pt(i + 1, a0), nA = nr(i, a0), nB = nr(i, a1), nC = nr(i + 1, a1), nD = nr(i + 1, a0);
+    P.push(...A, ...B, ...C, ...A, ...C, ...D); Q.push(...nA, ...nB, ...nC, ...nA, ...nC, ...nD);
+  }
+  for (const [i, s] of [[0, rings[0][0] < rings[R - 1][0] ? -1 : 1], [R - 1, rings[0][0] < rings[R - 1][0] ? 1 : -1]]) for (let k = 0; k < seg; k++) { const r = rings[i]; P.push(r[3] || 0, r[0], r[4] || 0, ...pt(i, k / seg * T), ...pt(i, (k + 1) / seg * T)); Q.push(0, s, 0, 0, s, 0, 0, s, 0); }
+  return { p: new Float32Array(P), q: new Float32Array(Q), n: P.length / 3 };
+}
 const SPT = mkSphere(5, 3), SPH = mkSphere(14, 9), SPL = mkSphere(9, 6), SPX = mkSphere(6, 4), CYL = mkCyl(12, 1), CYX = mkCyl(7, 1), CONE = mkCyl(10, 0), TAPER = mkCyl(12, 0.55);
 
 const G3 = {
@@ -73,52 +90,62 @@ uniform vec3 uSun, uSunCol, uAmb, uFog, uCam, uLitA, uLitB; uniform float uFogD,
   float fd = length(vW - uCam); float fog = clamp(fd / uFogD, 0.0, 1.0); fog *= fog;
   if (uAdd > 1.5) { gl_FragColor = vec4(0.0, 0.0, 0.0, em * (1.0 - fog)); return; }
   if (uAdd > 0.5) { gl_FragColor = vec4(col * em * (1.0 - fog), 1.0); return; }
+  vec3 v = normalize(uCam - vW);
   if (em < 0.0) { spec = -em; em = 0.0; }
-  else if (em > 8.5) { // ground: asphalt, paving, grass, water
+  else if (em > 8.5) { // ground: asphalt, paving, grass, water, rock
     float k = em; em = 0.0;
     if (k < 9.5) col *= 0.84 + 0.2 * vn(vW.xz * 0.8) + 0.1 * vn(vW.xz * 6.0);
     else if (k < 10.5) { vec2 t = fract(vW.xz / 2.5); float ln = step(0.965, max(t.x, t.y)); col *= (0.9 + 0.12 * vn(vW.xz * 0.4)) * (1.0 - 0.25 * ln); }
     else if (k < 11.5) col *= 0.78 + 0.3 * vn(vW.xz * 1.1) + 0.14 * vn(vW.xz * 8.0);
-    else { float w = vn(vW.xz * 0.3 + uTime * 0.2) + 0.5 * vn(vW.xz * 1.3 - uTime * 0.35); col *= 0.7 + 0.4 * w; spec = 0.7; }
+    else if (k < 12.5) { float w = vn(vW.xz * 0.3 + uTime * 0.2) + 0.5 * vn(vW.xz * 1.3 - uTime * 0.35) + 0.25 * vn(vW.xz * 4.0 + uTime * 0.8); col *= 0.5 + 0.27 * w; col = mix(col, uFog, 0.25 * pow(1.0 - max(dot(n, v), 0.0), 3.0)); spec = 0.9; n = normalize(n + vec3(w - 0.9, 0.0, vn(vW.zx * 1.7 + uTime * 0.5) - 0.5) * 0.25); }
+    else col *= 0.7 + 0.3 * vn(vW.xz * 0.35 + vW.y * 0.3) + 0.2 * vn(vec2(vW.x + vW.z, vW.y) * 1.6);
   }
-  else if (em > 1.5) { // a building: weathered wall, shop fronts, rows of glass windows
-    float d = em - 2.0; em = 0.0;
+  else if (em > 1.5) { // a building wall: 4 facade styles (windows / glass tower / brick / office bands)
+    float q = em - 2.0; float d = floor(q + 0.05); float st = floor((q - d) * 10.0 + 0.5); em = 0.0;
     if (abs(n.y) < 0.5) {
       float u = abs(n.x) > abs(n.z) ? vW.z : vW.x;
-      col *= 0.9 + 0.14 * vn(vec2(u * 0.5, vW.y * 0.2));
+      col *= (0.92 + 0.12 * vn(vec2(u * 0.5, vW.y * 0.2))) * (0.76 + 0.24 * smoothstep(0.0, 5.0, vW.y));
+      if (st > 1.5 && st < 2.5) { vec2 b = vec2(u / 0.55 + step(1.0, mod(floor(vW.y / 0.24), 2.0)) * 0.5, vW.y / 0.24); vec2 bf = fract(b); col *= (bf.x < 0.07 || bf.y < 0.14) ? 0.8 : 0.93 + 0.12 * hash(floor(b)); }
       if (vW.y > 0.3) {
-        bool shop = vW.y < 3.4;
-        vec2 g = shop ? vec2(u / 4.2, 0.0) : vec2(u / 2.4, vW.y / 3.2); vec2 c = floor(g);
-        vec2 f = shop ? vec2(fract(g.x), (vW.y - 0.3) / 3.1) : fract(g);
-        if (!shop && f.y < 0.07) col *= 0.8;
-        if (f.x > 0.16 && f.x < 0.84 && f.y > 0.26 && f.y < 0.82) {
+        bool shop = vW.y < 3.6;
+        vec2 cell = st < 0.5 ? vec2(2.4, 3.2) : st < 1.5 ? vec2(1.6, 3.2) : st < 2.5 ? vec2(3.0, 3.2) : vec2(6.0, 3.2);
+        vec2 lo = st < 0.5 ? vec2(0.2, 0.28) : st < 1.5 ? vec2(0.05, 0.05) : st < 2.5 ? vec2(0.3, 0.3) : vec2(0.03, 0.36);
+        vec2 hi = st < 0.5 ? vec2(0.8, 0.8) : st < 1.5 ? vec2(0.95, 0.95) : st < 2.5 ? vec2(0.7, 0.8) : vec2(0.97, 0.82);
+        if (shop) { cell = vec2(4.2, 3.3); lo = vec2(0.1, 0.1); hi = vec2(0.9, 0.86); }
+        vec2 g = shop ? vec2(u / cell.x, 0.0) : vec2(u / cell.x, vW.y / cell.y); vec2 c = floor(g);
+        vec2 f = shop ? vec2(fract(g.x), (vW.y - 0.3) / cell.y) : fract(g);
+        if (f.x > lo.x && f.x < hi.x && f.y > lo.y && f.y < hi.y) {
+          vec2 ed = min(f - lo, hi - f) * cell;
           float lit = d < 0.5 ? uLitA.x : d < 1.5 ? uLitA.y : d < 2.5 ? uLitA.z : d < 3.5 ? uLitB.x : d < 4.5 ? uLitB.y : uLitB.z;
-          vec3 win = d < 0.5 ? vec3(1.0, 0.8, 0.45) : d < 1.5 ? (hash(c * 0.7) < 0.5 ? vec3(1.0, 0.3, 0.9) : vec3(0.3, 0.95, 1.0)) : d < 2.5 ? vec3(0.95, 0.97, 0.85) : d < 3.5 ? vec3(0.8, 1.0, 0.4) : d < 4.5 ? vec3(1.0, 0.35, 0.3) : vec3(1.0, 0.92, 0.6);
-          float hs = hash(c + vec2(n.x * 7.0 + d, n.z * 13.0));
-          if (hs < lit * (shop ? 1.6 : 1.0)) { col = win * (0.75 + 0.25 * hash(c * 1.7)); em = 0.9; }
-          else { col = mix(vec3(0.07, 0.09, 0.13), uFog, 0.36 + 0.26 * f.y) * (0.8 + 0.2 * hs); spec = 0.5; }
-        }
+          vec3 win = d < 0.5 ? vec3(1.0, 0.8, 0.45) : d < 1.5 ? (hash(c * 0.7) < 0.5 ? vec3(1.0, 0.3, 0.9) : vec3(0.3, 0.95, 1.0)) : d < 2.5 ? vec3(1.0, 0.93, 0.75) : d < 3.5 ? vec3(0.8, 1.0, 0.4) : d < 4.5 ? vec3(1.0, 0.35, 0.3) : vec3(1.0, 0.9, 0.62);
+          if (d < 0.5 || d > 1.5) win = mix(win, vec3(1.0, 0.9, 0.68), 0.55);
+          float hs = hash(c + vec2(floor(n.x + 0.5) * 7.0 + d, floor(n.z + 0.5) * 13.0));
+          if (min(ed.x, ed.y) < 0.09) { col = mix(col, vec3(0.62, 0.65, 0.7), 0.6) * 0.8; spec = 0.25; } // window frame
+          else if (hs < lit * (shop ? 1.6 : 1.0)) { col = win * (0.7 + 0.3 * hash(c * 1.7)); if (!shop && hash(c * 3.1) < 0.35 && f.y > mix(lo.y, hi.y, 0.5)) col *= 0.5; em = 0.9; }
+          else { vec3 rf = reflect(-v, n); float sk = clamp(rf.y * 0.6 + 0.5, 0.0, 1.0); col = mix(vec3(0.05, 0.07, 0.1), mix(uFog, uAmb * 1.25, sk), st > 0.5 && st < 1.5 ? 0.8 : 0.5) * (0.8 + 0.2 * hs); spec = st > 0.5 && st < 1.5 ? 1.0 : 0.55; }
+        } else if (st > 0.5 && st < 1.5) { col = mix(col, vec3(0.42, 0.47, 0.55), 0.6); spec = 0.5; }
       }
     }
   }
   float ndl = max(dot(n, uSun), 0.0);
   vec3 lit = col * (uAmb * (0.62 + 0.5 * (0.5 + 0.5 * n.y)) + uSunCol * ndl);
-  if (spec > 0.0) { vec3 v = normalize(uCam - vW); vec3 hv = normalize(v + uSun); lit += uSunCol * pow(max(dot(n, hv), 0.0), 30.0) * spec; lit += uAmb * pow(1.0 - max(dot(n, v), 0.0), 3.0) * spec * 0.45; }
+  if (spec > 0.0) { vec3 hv = normalize(v + uSun); lit += uSunCol * pow(max(dot(n, hv), 0.0), 30.0) * spec; lit += uAmb * pow(1.0 - max(dot(n, v), 0.0), 3.0) * spec * 0.45; }
   lit = mix(lit, col, clamp(em, 0.0, 1.0));
   gl_FragColor = vec4(mix(lit, uFog, fog), 1.0);
 }`);
       this.sky = prog('attribute vec2 aP; varying vec2 vP; void main(){ vP=aP; gl_Position=vec4(aP,0.9999,1.0); }',
-        HP + 'varying vec2 vP; uniform vec3 uTop, uHor, uSunC, uSunP, uCl; uniform float uYaw, uTime, uCA;\n' + NOISE +
+        HP + 'varying vec2 vP; uniform vec3 uTop, uHor, uSunC, uSunP, uCl; uniform float uYaw, uTime, uCA, uStar;\n' + NOISE +
         'void main(){ float t=clamp(vP.y*0.9+0.25,0.0,1.0); vec3 c=mix(uHor,uTop,t); float d=length((vP-uSunP.xy)*vec2(1.78,1.0)); c+=uSunC*uSunP.z*(smoothstep(0.09,0.07,d)+0.35*smoothstep(0.7,0.0,d));' +
+        ' vec2 sp=floor(vec2(vP.x*1.78+uYaw*2.6, vP.y)*150.0); c+=vec3(step(0.9965,hash(sp))*uStar*smoothstep(-0.05,0.35,vP.y)*(0.6+0.4*hash(sp*1.3)));' +
         ' vec2 uv=vec2(vP.x*1.1+uYaw*1.7+uTime*0.004, vP.y*2.2); float f=vn(uv*1.7)*0.55+vn(uv*3.7)*0.3+vn(uv*8.0)*0.15; float cl=smoothstep(0.5,0.78,f)*smoothstep(-0.02,0.3,vP.y); c=mix(c,uCl,cl*uCA); gl_FragColor=vec4(c,1.0); }');
     } catch (e) { console.error(e); return false; }
     this.u = {}; for (const n of ['uVP', 'uSun', 'uSunCol', 'uAmb', 'uFog', 'uCam', 'uLitA', 'uLitB', 'uFogD', 'uAdd', 'uTime']) this.u[n] = gl.getUniformLocation(this.prog, n);
-    this.us = {}; for (const n of ['uTop', 'uHor', 'uSunC', 'uSunP', 'uCl', 'uYaw', 'uTime', 'uCA']) this.us[n] = gl.getUniformLocation(this.sky, n);
+    this.us = {}; for (const n of ['uTop', 'uHor', 'uSunC', 'uSunP', 'uCl', 'uYaw', 'uTime', 'uCA', 'uStar']) this.us[n] = gl.getUniformLocation(this.sky, n);
     this.aP = gl.getAttribLocation(this.prog, 'aP'); this.aN = gl.getAttribLocation(this.prog, 'aN'); this.aC = gl.getAttribLocation(this.prog, 'aC'); this.aSky = gl.getAttribLocation(this.sky, 'aP');
     this.sbuf = gl.createBuffer(); this.dbuf = gl.createBuffer(); this.abuf = gl.createBuffer(); this.hbuf = gl.createBuffer(); this.qbuf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.qbuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
     const tg = v => ({ a: new Float32Array(v * 10), n: 0, cap: v });
-    this.D = tg(170000); this.A = tg(26000); this.Sh = tg(5000); this.T = this.D; this.sn = 0;
+    this.D = tg(200000); this.A = tg(30000); this.Sh = tg(6000); this.T = this.D; this.sn = 0;
     this._c = new Float32Array(24); this._m = M4.id(); this.ok = true;
     return true;
   },
@@ -177,7 +204,7 @@ uniform vec3 uSun, uSunCol, uAmb, uFog, uCam, uLitA, uLitB; uniform float uFogD,
     gl.disable(gl.DEPTH_TEST); gl.disable(gl.BLEND); gl.depthMask(true);
     gl.useProgram(this.sky); gl.bindBuffer(gl.ARRAY_BUFFER, this.qbuf); gl.enableVertexAttribArray(this.aSky); gl.vertexAttribPointer(this.aSky, 2, gl.FLOAT, false, 0, 0);
     gl.uniform3fv(this.us.uTop, env.top); gl.uniform3fv(this.us.uHor, env.hor); gl.uniform3fv(this.us.uSunC, env.sunDisc); gl.uniform3fv(this.us.uSunP, env.sunScr);
-    gl.uniform3fv(this.us.uCl, env.cloud); gl.uniform1f(this.us.uCA, env.cloudA); gl.uniform1f(this.us.uYaw, env.yaw || 0); gl.uniform1f(this.us.uTime, env.time || 0);
+    gl.uniform3fv(this.us.uCl, env.cloud); gl.uniform1f(this.us.uCA, env.cloudA); gl.uniform1f(this.us.uYaw, env.yaw || 0); gl.uniform1f(this.us.uTime, env.time || 0); gl.uniform1f(this.us.uStar, env.star || 0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.clear(gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
     gl.useProgram(this.prog);

@@ -28,35 +28,6 @@ function rocket3(s, t) {
 }
 
 /* ---------------- animals and pets ---------------- */
-function legs4(m, bw, bl, hy, len, lr, col, w) { for (const sx of [-1, 1]) for (const sz of [-1, 1]) { const j = jnt(m, sx * bw, hy, sz * bl, sx * sz * w * 0.6, 0); G3.mesh(M4.t(j, 0, -len / 2, 0), CYX, lr, len / 2 + 0.03, lr, col, 0); } }
-function eyes2(m, x, y, z, r) { for (const s of [-1, 1]) ell(m, s * x, y, z, r, r, r * 0.6, C3('#15161a'), 0, SPT); }
-function animal3(a, t) {
-  const w = a.moving ? Math.sin(t * (a.fast ? 13 : 8) + a.ph) : 0, hop = a.kind === 'bunny' && a.moving ? Math.abs(Math.sin(t * 9 + a.ph)) * 0.25 : 0, m = M4.ry(M4.t(ID4, a.x, (a.y || 0) + hop, a.z), a.yaw), wag = Math.sin(t * 9 + a.ph) * 0.5;
-  switch (a.kind) {
-    case 'elephant': { const c = C3('#8d939e'), d = C3('#737986'); G3.mesh(M4.t(m, 0, 2.15, 0), SPH, 1.15, 1.1, 1.8, c, 0); legs4(m, 0.7, 1.1, 1.5, 1.5, 0.34, d, w); G3.mesh(M4.t(m, 0, 2.6, 1.9), SPL, 0.8, 0.85, 0.8, c, 0);
-      for (const s of [-1, 1]) { G3.mesh(M4.ry(M4.t(m, s * 0.95, 2.7, 1.6), s * 0.5 + Math.sin(t * 2 + a.ph) * 0.15), SPL, 0.75, 0.85, 0.12, d, 0); G3.mesh(M4.rx(M4.t(m, s * 0.4, 2.0, 2.6), HPI * 0.8), CONE, 0.09, 0.5, 0.09, C3('#f3ead6'), -0.4); }
-      const tr = Math.sin(t * 1.5 + a.ph) * 0.3; for (let i = 0; i < 5; i++) G3.mesh(M4.t(m, 0, 2.3 - i * 0.38, 2.6 + Math.sin(i * 0.5 + tr) * 0.25), SPX, 0.26 - i * 0.03, 0.26, 0.26 - i * 0.03, c, 0);
-      G3.mesh(M4.rx(M4.t(m, 0, 2.2, -1.85), 0.3), CYX, 0.05, 0.5, 0.05, d, 0); eyes2(m, 0.5, 2.85, 2.5, 0.08); break; }
-    case 'tiger': { const c = C3('#f08a24'), d = C3('#2a1c14'); G3.mesh(M4.t(m, 0, 1.0, 0), SPL, 0.42, 0.42, 1.05, c, 0); for (let i = -1; i <= 1; i++) G3.mesh(M4.rx(M4.t(m, 0, 1.03, i * 0.45), HPI), CYX, 0.435, 0.05, 0.435, d, 0);
-      legs4(m, 0.26, 0.7, 0.75, 0.75, 0.1, c, w); G3.mesh(M4.t(m, 0, 1.3, 1.15), SPL, 0.34, 0.32, 0.36, c, 0); ell(m, 0, 1.2, 1.45, 0.17, 0.13, 0.12, C3('#fff4e0'), 0, SPX);
-      for (const s of [-1, 1]) ell(m, s * 0.24, 1.6, 1.05, 0.09, 0.1, 0.05, d, 0, SPT); eyes2(m, 0.14, 1.38, 1.44, 0.04); G3.mesh(M4.rx(M4.t(m, 0, 1.1, -1.35), -1.1 + wag * 0.3), CYX, 0.05, 0.45, 0.05, c, 0); break; }
-    case 'deer': { const c = C3('#b07a4a'), d = C3('#7a5230'); G3.mesh(M4.t(m, 0, 1.25, 0), SPL, 0.34, 0.38, 0.85, c, 0); legs4(m, 0.2, 0.55, 0.95, 0.95, 0.06, d, w); G3.mesh(M4.rx(M4.t(m, 0, 1.75, 0.8), 0.5), CYX, 0.12, 0.42, 0.12, c, 0); G3.mesh(M4.t(m, 0, 2.15, 1.05), SPX, 0.17, 0.17, 0.26, c, 0);
-      for (const s of [-1, 1]) { G3.mesh(M4.rz(M4.t(m, s * 0.12, 2.5, 0.95), -s * 0.4), CONE, 0.03, 0.28, 0.03, C3('#e8dcc0'), 0); ell(m, s * 0.17, 2.25, 0.9, 0.05, 0.1, 0.03, d, 0, SPT); } eyes2(m, 0.12, 2.2, 1.2, 0.03); ell(m, 0, 1.4, -0.85, 0.1, 0.12, 0.08, C3('#fff4e0'), 0, SPT); break; }
-    case 'croc': { const c = C3('#4a7a3a'), d = C3('#35592a'); G3.mesh(M4.t(m, 0, 0.32, 0), SPL, 0.45, 0.24, 1.3, c, 0); legs4(m, 0.5, 0.75, 0.3, 0.3, 0.09, d, w); G3.mesh(M4.t(m, 0, 0.34, 1.6), SPX, 0.26, 0.14, 0.75, c, 0); G3.mesh(M4.rx(M4.t(m, 0, 0.3, -2.0), -HPI), CONE, 0.26, 0.95, 0.2, d, 0);
-      for (let i = 0; i < 5; i++) ell(m, 0, 0.56, -0.9 + i * 0.4, 0.08, 0.07, 0.1, d, 0, SPT); eyes2(m, 0.16, 0.5, 1.2, 0.05); break; }
-    case 'monkey': { const c = C3('#7a5230'), f = C3('#e8c9a0'); G3.mesh(M4.t(m, 0, 0.55, 0), SPL, 0.3, 0.38, 0.26, c, 0); G3.mesh(M4.t(m, 0, 1.1, 0.05), SPL, 0.25, 0.24, 0.24, c, 0); ell(m, 0, 1.07, 0.2, 0.17, 0.15, 0.1, f, 0, SPX); eyes2(m, 0.07, 1.12, 0.29, 0.03);
-      for (const s of [-1, 1]) { ell(m, s * 0.26, 1.12, 0.02, 0.07, 0.09, 0.04, f, 0, SPT); const j = jnt(m, s * 0.3, 0.8, 0, a.moving ? s * w : 2.6 + wag * 0.4, s * 0.3); G3.mesh(M4.t(j, 0, -0.3, 0), CYX, 0.06, 0.32, 0.06, c, 0); const l = jnt(m, s * 0.16, 0.3, 0.05, -s * w * 0.7 + 0.5, 0); G3.mesh(M4.t(l, 0, -0.18, 0), CYX, 0.07, 0.2, 0.07, c, 0); }
-      for (let i = 0; i < 5; i++) ell(m, 0, 0.3 + Math.sin(i * 0.7) * 0.35, -0.3 - i * 0.14, 0.05, 0.05, 0.09, c, 0, SPT); break; }
-    case 'parrot': { const c = C3(a.col || '#e5383b'), fl = Math.sin(t * 16 + a.ph) * (a.moving ? 1 : 0.1); G3.mesh(M4.rx(M4.t(m, 0, 0.3, 0), 0.5), SPX, 0.13, 0.2, 0.13, c, -0.2); G3.mesh(M4.t(m, 0, 0.52, 0.1), SPX, 0.11, 0.11, 0.11, c, -0.2); G3.mesh(M4.rx(M4.t(m, 0, 0.5, 0.22), HPI + 0.5), CONE, 0.05, 0.08, 0.04, C3('#ffd23f'), 0); eyes2(m, 0.07, 0.56, 0.17, 0.02);
-      for (const s of [-1, 1]) G3.mesh(M4.rz(M4.t(m, s * 0.2, 0.36, -0.02), s * (0.3 + fl)), SPX, 0.22, 0.03, 0.12, C3('#2f7df6'), -0.2); G3.mesh(M4.rx(M4.t(m, 0, 0.2, -0.24), -1.1), SPX, 0.05, 0.2, 0.03, C3('#ffd23f'), 0); break; }
-    case 'dog': { const c = C3('#c98f4e'), d = C3('#8a5a2c'); G3.mesh(M4.t(m, 0, 0.5, 0), SPX, 0.2, 0.2, 0.42, c, 0); legs4(m, 0.13, 0.28, 0.36, 0.36, 0.05, c, w); G3.mesh(M4.t(m, 0, 0.75, 0.45), SPX, 0.17, 0.16, 0.18, c, 0); ell(m, 0, 0.7, 0.62, 0.09, 0.08, 0.1, d, 0, SPT); ell(m, 0, 0.74, 0.72, 0.03, 0.03, 0.03, C3('#15161a'), 0, SPT);
-      for (const s of [-1, 1]) ell(m, s * 0.15, 0.8, 0.4, 0.04, 0.11, 0.07, d, 0, SPT); eyes2(m, 0.07, 0.8, 0.6, 0.025); G3.mesh(M4.rz(M4.rx(M4.t(m, 0, 0.62, -0.42), -0.9), wag), CYX, 0.03, 0.18, 0.03, d, 0); break; }
-    case 'cat': { const c = C3('#8a8f9c'); G3.mesh(M4.t(m, 0, 0.36, 0), SPX, 0.15, 0.15, 0.33, c, 0); legs4(m, 0.09, 0.22, 0.26, 0.26, 0.035, c, w); G3.mesh(M4.t(m, 0, 0.56, 0.34), SPX, 0.14, 0.13, 0.13, c, 0);
-      for (const s of [-1, 1]) G3.mesh(M4.t(m, s * 0.08, 0.72, 0.32), CONE, 0.045, 0.07, 0.03, c, 0); eyes2(m, 0.055, 0.58, 0.45, 0.025); ell(m, 0, 0.53, 0.47, 0.02, 0.015, 0.015, C3('#ff8fa3'), 0, SPT); G3.mesh(M4.rx(M4.t(m, 0, 0.5, -0.36), 0.5 + wag * 0.3), CYX, 0.025, 0.24, 0.025, c, 0); break; }
-    case 'bunny': { const c = C3('#f4f4f6'); G3.mesh(M4.t(m, 0, 0.26, 0), SPX, 0.16, 0.17, 0.22, c, 0); G3.mesh(M4.t(m, 0, 0.46, 0.2), SPX, 0.12, 0.12, 0.12, c, 0);
-      for (const s of [-1, 1]) { G3.mesh(M4.rz(M4.t(m, s * 0.05, 0.7, 0.16), -s * 0.15), SPT, 0.035, 0.16, 0.025, c, 0); ell(m, s * 0.1, 0.09, 0.06, 0.05, 0.05, 0.12, c, 0, SPT); } eyes2(m, 0.06, 0.5, 0.3, 0.02); ell(m, 0, 0.45, 0.32, 0.018, 0.014, 0.014, C3('#ff8fa3'), 0, SPT); ell(m, 0, 0.26, -0.22, 0.06, 0.06, 0.06, c, 0, SPT); break; }
-  }
-}
 function fish3(f, t) {
   const big = f.big, s = big ? 1 : f.s, m = M4.rx(M4.ry(M4.t(ID4, f.x, f.y, f.z), f.yaw + Math.sin(t * 8 + f.ph) * 0.15), f.pitch || 0), c = C3(f.col);
   if (big) { G3.mesh(m, SPL, 0.4, 0.42, 1.3, c, -0.6); ell(m, 0, -0.14, 0.3, 0.3, 0.26, 0.9, C3('#dfe6f0'), -0.4, SPX); G3.mesh(M4.rx(M4.t(m, 0, 0.5, -0.1), -0.5), CONE, 0.1, 0.3, 0.2, c, -0.5); G3.box(M4.t(m, 0, 0, -1.4), 0.55, 0.03, 0.2, c, -0.5); G3.mesh(M4.rx(M4.t(m, 0, 0.05, 1.45), HPI), CONE, 0.14, 0.25, 0.14, c, -0.5); }

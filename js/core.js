@@ -165,7 +165,7 @@ function newSave() {
     armor: [false, false, false, false, false],
     veh: { heli: false, jet: false }, bases: [false, false, false, false, false], // aircraft bought, robot bases destroyed
     cores: {}, pal: null, palLv: {},
-    bank: { sav: 0, sh: {}, px: {}, hist: {}, t: 0 }, house: 0, pets: {}, pet: null, fish: 0, friends: {}, // savings + shares, home, pets, fish caught, animal friends
+    bank: { sav: 0, sh: {}, px: {}, hist: {}, t: 0 }, house: 0, pets: {}, pet: null, fish: 0, friends: {}, stars: {}, caveT: {}, chestT: 0, // savings + shares, home, pets, fish caught, animal friends
     // robot cores collected, the active Robo-Pal and pal levels
     wp: { m: 'fist', r: 'blaster', own: {} }, // weapons: equipped close-up + blaster, and the ones bought
     stage: 0, stars: {}, bossDone: {},

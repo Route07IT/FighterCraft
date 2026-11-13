@@ -12,6 +12,9 @@ const ROOM_INFO = {
   pets: { name: '🐶 PET SHOP', w: 18, d: 12, floor: '#d8f0c8', wall: '#ffe0a8', trim: '#ffb347', hi: 'Every pet helps you in a different way. Which one will you choose?' },
   bank: { name: '🏦 NOVA BANK', w: 20, d: 13, floor: '#e9e2d0', wall: '#3a5a48', trim: '#ffd23f', hi: 'Welcome to the bank. Coins you save here grow by themselves!' },
   house: { name: '🏠 MY HOUSE', w: 17, d: 11, floor: '#c9a070', wall: '#f4e6d0', trim: '#5fd68a', hi: 'Home sweet home!' },
+  cave1: { name: '💎 CRYSTAL CAVE', w: 20, d: 13, floor: '#4a4650', wall: '#3c3a44', trim: '#b388ff', cave: 1, hi: 'A crystal cave! Walk up to a crystal and press F to dig it out. They grow back after a while.' },
+  cave2: { name: '🏴‍☠️ PIRATE CAVE', w: 18, d: 12, floor: '#5a5044', wall: '#40382e', trim: '#ffd23f', cave: 1, hi: 'A pirate hideout! I wonder what is inside that chest...' },
+  cave3: { name: '🐻 BEAR CAVE', w: 17, d: 11, floor: '#4e4a40', wall: '#3a362e', trim: '#ffb347', cave: 1, hi: 'You found the secret cave behind the waterfall! Shh... somebody lives here.' },
   dojo: { name: '🥋 DOJO', w: 18, d: 12, floor: '#b98a4e', wall: '#5b3a55', trim: '#ff8c1a', hi: 'Pick a training station. Practice makes you powerful!' }
 };
 const PETS = {
@@ -54,7 +57,8 @@ Object.assign(World.prototype, {
     const h = this.h, I = ROOM_INFO[id]; if (h.veh) this.leaveVeh(false);
     this.room = { id, I, ret: { x: h.x, z: h.z, yaw: h.yaw }, items: this.roomItems(id, I), near: null }; this.padLock = id; this.panel = null;
     h.x = 0; h.z = I.d / 2 - 1.8; h.y = 0; h.yaw = Math.PI; h.vx = h.vz = h.vy = 0; h.on = true; h.atk = null; h.chute = false; h.climb = false; h.swim = false; this.en = []; this.shots = [];
-    this.pet3.x = 1.4; this.pet3.z = h.z; this.eye = [0, 4.7, I.d / 2 + 5]; this.tg = null; Snd.play('click'); Music.play('dojo'); UI.touch(true);
+    this.pet3.x = 1.4; this.pet3.z = h.z; this.eye = [0, 4.7, I.d / 2 + 5]; this.tg = null; Snd.play('click'); Music.play('dojo'); UI.touch(true); h.wade = false;
+    if (id === 'cave3') { const p = this.pads.find(q => q.id === 'cave3'); if (p) p.label = '🐻 BEAR CAVE'; }
     if (!S.stats['in_' + id]) { S.stats['in_' + id] = 1; this.say(I.hi, 5); }
   },
   exitRoom() { const h = this.h, r = this.room.ret; this.room = null; h.x = r.x; h.z = r.z; h.y = 0; h.yaw = wrapA(r.yaw + Math.PI); this.camYaw = h.yaw; this.tg = null; this.pet3.x = h.x + 1; this.pet3.z = h.z; Music.play('hub'); Snd.play('click'); Save.save(); },
@@ -85,13 +89,39 @@ Object.assign(World.prototype, {
       for (const sx of [-1, 1]) it(sx * 1.2, 3.5, { r: 0.4, draw: () => plant3(sx * 1.2 + sx * 7.5, 5) });
     } else if (id === 'house') {
       const lv = S.house;
-      it(-6, zb + 2.3, { r: 1.5, reach: 3, label: () => '🛏️ Sleep  •  heals you and saves your game', draw: () => { G3.abox(-6, 0.35, zb + 2.3, 1.2, 0.35, 2, C3('#8a6a4a')); G3.abox(-6, 0.78, zb + 2.6, 1.1, 0.1, 1.6, C3(SUITS[S.suit][0]), -0.1); G3.amesh(-6, 0.9, zb + 0.9, SPX, 0.7, 0.2, 0.4, WHITE, 0); G3.abox(-6, 1.0, zb + 0.35, 1.25, 0.9, 0.1, C3('#6b4a2b')); }, use: () => { const h = this.h; h.hp = h.maxHp; h.en = h.maxEn; this.flash = 0.8; Snd.play('heart'); Save.save(); UI.toast('😴 Good morning! You feel great. Game saved.'); } });
+      it(-6, zb + 2.3, { r: 1.5, reach: 3, label: () => '🛏️ Sleep  •  heals you and saves your game', draw: () => { G3.abox(-6, 0.35, zb + 2.3, 1.2, 0.35, 2, C3('#8a6a4a')); G3.abox(-6, 0.78, zb + 2.6, 1.1, 0.1, 1.6, C3(SUITS[S.suit][0]), -0.1); G3.amesh(-6, 0.9, zb + 0.9, SPX, 0.7, 0.2, 0.4, WHITE, 0); G3.abox(-6, 1.0, zb + 0.35, 1.25, 0.9, 0.1, C3('#6b4a2b')); }, use: () => { const h = this.h; h.hp = h.maxHp; h.en = h.maxEn; this.flash = 0.8; this.tod = 0.27; Snd.play('heart'); Save.save(); UI.toast('😴 Good morning! You feel great. Game saved.'); } });
       it(5.6, zb + 1, { r: 1.2, reach: 2.9, label: () => '👕 Wardrobe  •  change your suit color', draw: () => { G3.abox(5.6, 1.4, zb + 0.6, 1.2, 1.4, 0.5, C3('#8a6a4a'), -0.2); for (const s of [-1, 1]) { G3.abox(5.6 + s * 0.6, 1.4, zb + 1.12, 0.56, 1.3, 0.02, C3('#a8825c')); G3.amesh(5.6 + s * 0.12, 1.4, zb + 1.17, SPT, 0.05, 0.05, 0.05, C3('#ffd23f'), -0.8); } }, use: () => this.openPanel('wardrobe') });
       it(0, zb + 0.8, { r: 1.1, reach: 2.8, label: () => `🏅 Trophy shelf  •  ${BADGES.filter(b => S.badges[b.id]).length} badges`, draw: () => { G3.abox(0, 1.3, zb + 0.4, 1.8, 0.05, 0.35, C3('#8a6a4a')); G3.abox(0, 2.1, zb + 0.4, 1.8, 0.05, 0.35, C3('#8a6a4a')); const n = Math.min(10, BADGES.filter(b => S.badges[b.id]).length); for (let q = 0; q < n; q++) { const x = -1.5 + (q % 5) * 0.75, y = q < 5 ? 1.35 : 2.15; G3.amesh(x, y + 0.08, zb + 0.4, CYX, 0.1, 0.08, 0.1, C3('#6b4a2b')); G3.amesh(x, y + 0.32, zb + 0.4, SPT, 0.13, 0.17, 0.13, C3('#ffd23f'), -0.95); } }, use: () => this.openPanel('badges') });
       it(6.6, 3, { r: 0.7, reach: 2.6, label: () => lv >= 3 ? '🏠 Your home is a Hero Villa - the biggest there is!' : `🏠 Make the house bigger  •  ${HOUSES[lv + 1].name}: ${HOUSES[lv + 1].cost} coins`, draw: () => { G3.abox(6.6, 0.4, 3, 0.7, 0.4, 0.5, C3('#8a6a4a')); G3.abox(6.6, 0.95, 3, 0.4, 0.14, 0.3, C3('#5fd68a'), 0.6); }, use: () => this.openPanel('housebuy') });
       it(2.6, 3.4, { r: 0.1, draw: () => { G3.amesh(2.6, 0.12, 3.4, CYL, 0.6, 0.12, 0.6, C3('#e5383b'), 0); G3.amesh(2.6, 0.2, 3.4, CYL, 0.48, 0.1, 0.48, C3('#fff6c9'), 0); } });
       if (lv >= 2) { it(-6.8, 2.6, { r: 1, reach: 2.6, label: () => `🐟 Aquarium  •  ${S.fish} fish inside (catch more in the sea)`, draw: t => { G3.abox(-6.8, 0.4, 2.6, 0.9, 0.4, 0.5, C3('#3a2a1c')); G3.abox(-6.8, 1.3, 2.6, 0.9, 0.5, 0.5, C3('#39a0ff'), 0.45); for (let k = 0; k < Math.min(8, S.fish); k++) fish3({ x: -6.8 + Math.sin(t * 0.8 + k * 1.7) * 0.6, y: 1.05 + (k % 4) * 0.14, z: 3.13, yaw: Math.cos(t * 0.8 + k * 1.7) > 0 ? HPI : -HPI, col: ['#ff8c1a', '#ffd23f', '#ff6b9d', '#5fd68a'][k % 4], s: 0.7, ph: k }, t); }, use: () => UI.toast(S.fish ? `Your aquarium has ${S.fish} fish. They look happy!` : 'The aquarium is empty. Catch fish in the sea!') }); it(0, 2.2, { r: 0.1, draw: () => G3.abox(0, 0.02, 2.2, 2.4, 0.02, 1.5, C3(SUITS[S.suit][1]), 0) }); }
       if (lv >= 3) { it(-1.5, 4.2, { r: 0.9, draw: () => { G3.abox(-1.5, 0.4, 4.2, 1.6, 0.35, 0.6, C3('#3a78d8'), -0.1); G3.abox(-1.5, 0.9, 4.75, 1.6, 0.45, 0.14, C3('#3a78d8'), -0.1); } }); it(-1.5, zb + 0.5, { r: 0.1, draw: t => { G3.abox(-3.6, 2.2, zb + 0.3, 1.3, 0.75, 0.05, C3('#0e1428')); G3.abox(-3.6, 2.2, zb + 0.36, 1.2, 0.66, 0.01, C3(['#39d0ff', '#ff6b8a', '#ffd23f'][Math.floor(t) % 3]), 0.7); } }); it(8, zb + 1, { r: 0.4, draw: () => plant3(7.6, zb + 1) }); }
+    } else if (I.cave) {
+      const star = (x, z, sid) => it(x, z, { r: 0.1, draw: t => { if (!S.stars[sid]) star3(x, 1.3, z, t); }, touch: () => this.getStar(sid, x, 1.3, z) });
+      const stone = (x, z, s) => it(x, z, { r: 0.75 * s, draw: () => { G3.amesh(x, 0, z, SPX, 0.9 * s, 0.75 * s, 0.8 * s, C3('#6a6870'), 13); G3.amesh(x + 0.3 * s, 0.6 * s, z, CONE, 0.3 * s, 0.9 * s, 0.3 * s, C3('#77757e'), 13); } });
+      if (id === 'cave1') {
+        const cc = ['#b388ff', '#7df9ff', '#ff6b9d', '#5dff9a', '#ffd23f', '#39d0ff'];
+        [[-7.6, zb + 2.3], [-4.3, zb + 3.8], [-1, zb + 2], [2.6, zb + 3.4], [5.6, zb + 2.1], [8, zb + 4.6]].forEach(([x, z], i) => { const key = 'gem' + i, ready = () => !(S.caveT[key] > Date.now());
+          it(x, z, { r: 0.7, reach: 2.4, label: () => ready() ? '⛏️ Dig out the crystal  •  coins and XP' : '🌱 This crystal is growing back...',
+            draw: (t, near) => { const s = ready() ? 1 : 0.3; for (let q = 0; q < 3; q++) G3.mesh(M4.rz(M4.rx(M4.t(ID4, x + (q - 1) * 0.3, 0, z), (q - 1) * 0.25), (1 - q) * 0.3), CONE, 0.22 * s, (0.9 + (q % 2) * 0.5) * s, 0.22 * s, C3(cc[i]), 0.6); if (ready()) G3.agmesh(x, 0.7, z, SPL, 1.0, 0.9, 1.0, C3(cc[i]), near ? 0.3 : 0.14 + Math.sin(t * 2 + i) * 0.04); },
+            use: () => { if (!ready()) { UI.toast('This crystal needs a few minutes to grow back.'); return; } S.caveT[key] = Date.now() + 240000; const c = 20 + Math.floor(Math.random() * 16); S.coins += c; S.stats.gems = (S.stats.gems || 0) + 1; Snd.play('coin'); this.fx.spark(x, 0.8, z, 20, cc[i], 7); this.text(x, 1.8, z, '+' + c + ' 💎', '#ffe14d', 30); this.gainXp(8); UI.badgeToasts(checkBadges()); Save.save(); } }); });
+        star(-8.4, 4.2, 28); stone(4.2, 4.4, 1); stone(-2.6, 4.8, 0.7);
+      } else if (id === 'cave2') {
+        const full = () => !(S.chestT > Date.now());
+        it(0, zb + 2.4, { r: 1.1, reach: 2.8, label: () => full() ? '💰 Open the treasure chest!' : '💰 The chest is empty. The pirates fill it again later...',
+          draw: (t, near) => { const z = zb + 2.4, o = full() ? 0 : 1; G3.abox(0, 0.4, z, 0.95, 0.4, 0.6, C3('#7a4a2a'), -0.2); for (const s of [-1, 1]) G3.abox(s * 0.6, 0.4, z, 0.07, 0.42, 0.62, C3('#ffd23f'), -0.9); G3.mesh(M4.rx(M4.t(ID4, 0, 0.8, z - 0.6), -o * 1.1), CYL, 0.95, 0.001, 0.001, C3('#7a4a2a')); G3.box(M4.t(M4.rx(M4.t(ID4, 0, 0.8, z - 0.6), -o * 1.1), 0, 0.14, 0.6), 0.97, 0.14, 0.62, C3('#8a5a34'), -0.2); if (!o) { G3.abox(0, 0.62, z + 0.61, 0.12, 0.14, 0.03, C3('#ffd23f'), -0.9); G3.agmesh(0, 0.9, z, SPL, 1.4, 1.1, 1.3, C3('#ffd23f'), near ? 0.28 : 0.14 + Math.sin(t * 3) * 0.04); } },
+          use: () => { if (!full()) { UI.toast('The chest is empty. Come back later!'); return; } const first = !S.stats.chest, c = first ? 400 : 90 + Math.floor(Math.random() * 60); S.stats.chest = (S.stats.chest || 0) + 1; S.chestT = Date.now() + 600000; S.coins += c; this.coinPulse = 1; Snd.play('fanfare'); this.fx.spark(0, 1, zb + 2.4, 40, '#ffd23f', 9); this.text(0, 2.2, zb + 2.4, '+' + c + ' coins!', '#ffe14d', 36); this.gainXp(first ? 60 : 15); UI.toast(first ? '🏴‍☠️ You found the pirate treasure! +' + c + ' coins' : '💰 +' + c + ' coins'); UI.badgeToasts(checkBadges()); Save.save(); } });
+        for (const [x, z] of [[-6.4, zb + 2], [-5.1, zb + 2.5], [6, zb + 2.2]]) it(x, z, { r: 0.6, draw: () => { G3.amesh(x, 0.6, z, CYL, 0.5, 0.6, 0.5, C3('#7a4a2a'), -0.1); for (const y of [0.25, 0.95]) G3.amesh(x, y, z, CYL, 0.53, 0.05, 0.53, C3('#3a3d48'), -0.6); } });
+        it(5.4, 3.6, { r: 0.4, draw: t => { G3.amesh(5.4, 1.1, 3.6, CYX, 0.05, 1.1, 0.05, C3('#6b4a2b')); G3.abox(5.4, 2.1, 3.6, 0.45, 0.04, 0.04, C3('#6b4a2b')); animal3({ kind: 'parrot', x: 5.4, y: 2.0, z: 3.6, yaw: -2.2 + Math.sin(t) * 0.3, moving: false, ph: 0, col: '#e5383b' }, t); } });
+        it(-7.4, 4.6, { r: 0.1, draw: () => { G3.amesh(-7.4, 2.4, zb + 0.5, CYX, 0.05, 2.4, 0.05, C3('#6b4a2b')); G3.abox(-6.6, 4.1, zb + 0.5, 0.8, 0.55, 0.02, C3('#111114')); G3.amesh(-6.6, 4.2, zb + 0.54, SPT, 0.22, 0.24, 0.03, WHITE); G3.box(M4.rz(M4.t(ID4, -6.6, 3.85, zb + 0.54), 0.5), 0.3, 0.04, 0.02, WHITE); G3.box(M4.rz(M4.t(ID4, -6.6, 3.85, zb + 0.54), -0.5), 0.3, 0.04, 0.02, WHITE); } });
+        stone(-2.8, 4.4, 0.8);
+      } else {
+        const b = { kind: 'bear', x: -3.4, y: 0, z: zb + 3, yaw: 0.9, moving: false, ph: 0, wait: 0 };
+        it(-3.4, zb + 3, { r: 1.5, reach: 3.3, label: () => `🐻 Pet the sleepy bear${S.friends.bear ? ' ❤' : ''}`, draw: t => { b.y = Math.sin(t * 1.6) * 0.03; animal3(b, t); for (let k = 0; k < 3; k++) { const p = (t * 0.5 + k / 3) % 1; G3.aglow(-2.6 + p * 0.6, 2.2 + p * 1.2, zb + 3.8, 0.05 + p * 0.06, 0.05 + p * 0.06, 0.01, WHITE, 0.9 * (1 - p)); } }, use: () => this.petAnimal(b) });
+        it(4, zb + 2.4, { r: 0.6, reach: 2.5, label: () => '🍯 Eat some honey  •  heals you all the way', draw: (t, near) => { G3.amesh(4, 0.45, zb + 2.4, SPX, 0.5, 0.45, 0.5, C3('#c98f3c'), -0.4); G3.amesh(4, 0.86, zb + 2.4, CYX, 0.36, 0.06, 0.36, C3('#8a5a2c')); G3.amesh(4, 0.93, zb + 2.4, CYX, 0.3, 0.02, 0.3, C3('#ffc93c'), 0.6); if (near) G3.agmesh(4, 0.9, zb + 2.4, SPT, 1, 0.9, 1, C3('#ffd23f'), 0.3); }, use: () => { const h = this.h; h.hp = h.maxHp; h.en = h.maxEn; Snd.play('heart'); this.text(4, 2, zb + 2.4, 'Yum! 🍯', '#ffe14d', 32); UI.toast('🍯 Sweet honey! You are all healed.'); } });
+        it(-6.6, 4, { r: 0.1, draw: () => { G3.amesh(-4.2, 0.06, zb + 3.4, CYL, 2.6, 0.06, 2, C3('#6a7a3a'), 11); for (let k = 0; k < 3; k++) G3.amesh(6.2 + k * 0.4, 0.12, 3.6 - k * 0.3, SPT, 0.22, 0.1, 0.4, C3('#c9d2e0')); } });
+        star(6.8, 1.6, 29); stone(1, 4.3, 0.8);
+      }
     } else if (id === 'dojo') {
       ['str', 'spd', 'foc'].forEach((k, i) => { const D = DOJO_INFO[k], x = -5.5 + i * 5.5, z = zb + 3;
         it(x, z, { r: 0.8, reach: 2.6, label: () => `${D.icon} ${D.name}  •  trains ${D.stat} (level ${S[k]})  •  ${D.gives}`, draw: (t, near) => { if (k === 'str') { G3.amesh(x, 4.4, z, CYX, 0.04, 1.2, 0.04, C3('#2a1d14')); G3.mesh(M4.rz(M4.t(ID4, x, 2.1, z), near ? Math.sin(t * 6) * 0.15 : 0), CYL, 0.45, 1.1, 0.45, C3('#d9483b'), -0.3); } else if (k === 'spd') { for (let q = 0; q < 4; q++) { const an = q * HPI + t; G3.amesh(x + Math.cos(an) * 0.6, 0.12, z + Math.sin(an) * 0.6, CYL, 0.3, 0.1, 0.3, C3(PAD_COL[q]), 0.7); } G3.amesh(x, 1.2, z, SPX, 0.35, 0.3, 0.35, C3('#93a1b8'), -0.6); G3.amesh(x, 0.55, z, CYX, 0.06, 0.45, 0.06, C3('#465066')); } else { G3.mesh(M4.ry(M4.t(ID4, x, 1.5 + Math.sin(t * 2) * 0.1, z), t), CONE, 0.4, 0.5, 0.4, C3('#7df9ff'), 0.8); G3.mesh(M4.rx(M4.ry(M4.t(ID4, x, 0.6 + Math.sin(t * 2) * 0.1, z), t), Math.PI), CONE, 0.4, 0.4, 0.4, C3('#39d0ff'), 0.7); } spot(x, z, near ? '#ffe14d' : '#ff8c1a'); }, use: () => { Game.go(new Dojo(k)); } }); });
@@ -105,7 +135,7 @@ Object.assign(World.prototype, {
     if (mx || mz) { const l = Math.hypot(mx, mz); h.yaw = lerpA(h.yaw, Math.atan2(mx, mz), Math.min(1, dt * 14)); h.x += mx / l * 5.6 * dt; h.z += mz / l * 5.6 * dt; h.mv = 1; }
     h.x = clamp(h.x, -I.w / 2 + 0.6, I.w / 2 - 0.6); h.z = clamp(h.z, -I.d / 2 + 0.8, Math.abs(h.x) < 1.7 ? I.d / 2 + 0.6 : I.d / 2 - 0.7);
     let near = null, bd = 99;
-    for (const q of R.items) { const dx = h.x - q.x, dz = h.z - q.z, d = Math.hypot(dx, dz); if (q.r > 0.2 && d < q.r + 0.45 && d > 0.01) { h.x = q.x + dx / d * (q.r + 0.45); h.z = q.z + dz / d * (q.r + 0.45); } if (q.use && d < q.reach && d < bd) { bd = d; near = q; } }
+    for (const q of R.items) { const dx = h.x - q.x, dz = h.z - q.z, d = Math.hypot(dx, dz); if (q.r > 0.2 && d < q.r + 0.45 && d > 0.01) { h.x = q.x + dx / d * (q.r + 0.45); h.z = q.z + dz / d * (q.r + 0.45); } if (q.use && d < q.reach && d < bd) { bd = d; near = q; } if (q.touch && d < 1.5) q.touch(); }
     R.near = near;
     if (near && (Input.hit('use') || Input.hit('punch') || Input.hit('ok') || Input.hit('jump') || Input.mouse.clicked)) { near.use(); if (!this.room) return; }
     if (h.z > I.d / 2 + 0.3) { this.exitRoom(); return; }
@@ -118,15 +148,27 @@ Object.assign(World.prototype, {
     const h = this.h, R = this.room, I = R.I, t = this.t, e = this.eye, tg = this.tgt || [0, 1.1, 0], w = I.w / 2, d = I.d / 2, wall = C3(I.wall), trim = C3(I.trim);
     this.vp = M4.mul(this.proj, M4.look(e[0], e[1], e[2], tg[0], tg[1], tg[2]));
     const env = this.roomEnv || (this.roomEnv = { top: [0.04, 0.05, 0.09], hor: [0.09, 0.1, 0.15], fog: [0.09, 0.1, 0.15], amb: [0.76, 0.74, 0.72], sunCol: [0.5, 0.48, 0.44], sun: SUN_DIR, fogD: 600, litA: [0, 0, 0], litB: [0, 0, 0], sunDisc: [0, 0, 0], sunScr: [0, 0, 0], cloud: [0, 0, 0], cloudA: 0, yaw: 0, time: 0, noStatic: true });
-    env.time = t; G3.begin();
+    const env2 = I.cave ? (this.caveEnv || (this.caveEnv = Object.assign({}, env, { amb: [0.46, 0.44, 0.56], sunCol: [0.24, 0.22, 0.28], top: [0.01, 0.01, 0.02], hor: [0.03, 0.03, 0.05], fog: [0.03, 0.03, 0.05], fogD: 70 }))) : env;
+    env.time = env2.time = t; G3.begin();
+    if (I.cave) this.drawCave(I, w, d, t); else {
     G3.abox(0, -0.1, 0, w, 0.1, d + 1, C3(I.floor), 10); G3.abox(0, 3.2, -d - 0.2, w + 0.4, 3.2, 0.2, wall); for (const s of [-1, 1]) { G3.abox(s * (w + 0.2), 3.2, 0, 0.2, 3.2, d, wall); G3.abox(s * (w - 0.02), 1.1, 0, 0.02, 0.09, d, trim, 0.6); }
     G3.abox(0, 1.1, -d + 0.02, w, 0.09, 0.02, trim, 0.6); G3.abox(0, 6.3, -d + 0.02, w, 0.14, 0.04, trim, 0.8); G3.abox(0, 0.02, d - 0.1, 1.7, 0.02, 0.8, C3('#5fd68a'), 0.6);
     for (const s of [-1, 1]) G3.abox(s * 1.9, 1.5, d + 0.2, 0.16, 1.5, 0.16, trim, 0.4);
     for (let k = -1; k <= 1; k++) { G3.amesh(k * w * 0.55, 6.1, -1, CYL, 0.5, 0.08, 0.5, WHITE, 1); G3.agmesh(k * w * 0.55, 5.6, -1, SPT, 1.5, 0.8, 1.5, C3('#fff6c9'), 0.25); }
+    }
     for (const q of R.items) if (q.draw) q.draw(t, q === R.near);
     G3.shadow(h.x, 0.03, h.z, 0.75, 0.5); hero3({ x: h.x, y: 0, z: h.z, yaw: h.yaw, t, pose: h.mv ? 'run' : 'idle', pt: 0, armor: S.armor, suit: S.suit, melee: S.wp.m, ranged: S.wp.r });
     if (S.pet) { G3.shadow(this.pet3.x, 0.03, this.pet3.z, 0.4, 0.35); animal3(this.pet3, t); }
-    this.fx.draw(); G3.render(this.vp, e, env); g.clearRect(0, 0, W, H); this.drawRoomHud(g);
+    this.fx.draw(); G3.render(this.vp, e, env2); g.clearRect(0, 0, W, H); this.drawRoomHud(g);
+  },
+  drawCave(I, w, d, t) { // rock walls, boulders, hanging stones, torches, bats and daylight at the way out
+    const wall = C3(I.wall), rk = mulC(wall, 1.3);
+    G3.abox(0, -0.1, 4, w + 6, 0.1, d + 8, C3(I.floor), 13); G3.abox(0, 3.6, -d - 0.6, w + 2, 3.8, 0.6, wall, 13); for (const s of [-1, 1]) G3.abox(s * (w + 0.6), 3.6, 0, 0.6, 3.8, d + 1, wall, 13);
+    for (let k = 0; k < 9; k++) { const x = -w + 1 + k * (w * 2 - 2) / 8, q = (k * 37 % 10) / 10; G3.amesh(x, 0, -d + 0.2, SPX, 1.6 + q, 1.4 + q * 2.2, 1.2, rk, 13); G3.mesh(M4.rx(M4.t(ID4, x + 0.8, 6.9 - q, -d + 1.5 + q * 2.5), Math.PI), CONE, 0.3 + q * 0.2, 0.9 + q, 0.3 + q * 0.2, rk, 13); }
+    for (const s of [-1, 1]) for (let k = 0; k < 4; k++) { const z = -d + 2 + k * (d * 2 - 7) / 3, q = ((k + (s > 0 ? 2 : 0)) * 53 % 10) / 10; G3.amesh(s * (w + 0.1), 0, z, SPX, 1.2, 1.3 + q * 2, 1.5 + q, rk, 13); }
+    for (const s of [-1, 1]) { const x = s * (w - 0.5), z = -d * 0.25, fl = 1 + Math.sin(t * 14 + s) * 0.2; G3.amesh(x, 2.3, z, CYX, 0.05, 0.4, 0.05, C3('#6b4a2b')); G3.agmesh(x, 2.95, z, CONE, 0.14, 0.3 * fl, 0.14, C3('#ffb347'), 1.3); G3.agmesh(x, 2.8, z, SPL, 2.0, 1.6, 2.0, C3('#ff8c1a'), 0.1); }
+    G3.abox(0, 0.02, d - 0.1, 1.7, 0.02, 0.9, C3('#dff4ff'), 0.7); G3.agmesh(0, 0.6, d - 0.4, SPL, 2.4, 1.2, 1.8, C3('#dff4ff'), 0.1); // daylight falls in at the way out
+    for (let k = 0; k < 4; k++) { const a = t * (0.8 + k * 0.13) + k * 1.7; animal3({ kind: 'bat', x: Math.cos(a) * (3 + k), y: 4.4 + Math.sin(t * 2 + k) * 0.4, z: Math.sin(a) * 2.2 - 1, yaw: -a, ph: k, moving: true }, t); }
   },
   drawRoomHud(g) {
     const h = this.h, R = this.room, I = R.I, t = this.t; g.textBaseline = 'middle';

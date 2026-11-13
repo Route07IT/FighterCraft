@@ -8,14 +8,14 @@
    Extends the World class.
    ============================================================ */
 const PALS = { scrapper: { range: 2.2, cd: 0.9, m: 0.55 }, roller: { range: 1.9, cd: 0.7, m: 0.45 }, zapper: { range: 10, cd: 1.3, m: 0.7, shot: 1 }, drone: { range: 2.6, cd: 1.2, m: 0.6 }, brute: { range: 3.1, cd: 1.9, m: 1.5, big: 1 } };
-const VEH_INFO = { car: { name: 'HERO CAR', icon: '🚗' }, heli: { name: 'HELICOPTER', icon: '🚁', cost: 250 }, jet: { name: 'FIGHTER JET', icon: '✈️', cost: 600 } };
+const VEH_INFO = { car: { name: 'HERO CAR', icon: '🚗' }, boat: { name: 'SPEEDBOAT', icon: '🚤' }, heli: { name: 'HELICOPTER', icon: '🚁', cost: 250 }, jet: { name: 'FIGHTER JET', icon: '✈️', cost: 600 } };
 const PAL_DESC = { scrapper: 'Punches the robots next to you.', roller: 'A fast little rammer.', zapper: 'Shoots from far away.', drone: 'Flies and zaps from above.', brute: 'Slow, but its slam is HUGE.' };
 const palNeed = lv => lv ? 3 + lv * 2 : 3; // cores needed to build (lv 0) or upgrade a pal
 
 Object.assign(World.prototype, {
   /* ---------------- vehicles ---------------- */
-  owns(v) { return v.type === 'car' || !!S.veh[v.type]; },
-  homeVeh(v) { v.speed = 0; v.away = 0; if (v.type === 'heli') { v.x = AIR.heli[0]; v.z = AIR.heli[1]; v.y = 0; v.yaw = 0; } else if (v.type === 'jet') { v.x = AIR.jet[0]; v.z = AIR.jet[1]; v.y = 1.25; v.yaw = 0; v.air = false; v.roll = v.pitch = 0; } },
+  owns(v) { return v.type === 'car' || v.type === 'boat' || !!S.veh[v.type]; },
+  homeVeh(v) { v.speed = 0; v.away = 0; if (v.type === 'boat') { v.x = v.hx; v.z = v.hz; v.yaw = v.hyaw; } else if (v.type === 'heli') { v.x = AIR.heli[0]; v.z = AIR.heli[1]; v.y = 0; v.yaw = 0; } else if (v.type === 'jet') { v.x = AIR.jet[0]; v.z = AIR.jet[1]; v.y = 1.25; v.yaw = 0; v.air = false; v.roll = v.pitch = 0; } },
   upVehs(dt) {
     const h = this.h;
     for (const v of this.vehs) if (v.away > 0) { v.away -= dt; if (v.away <= 0) this.homeVeh(v); }
@@ -23,19 +23,19 @@ Object.assign(World.prototype, {
     if (this.mis || this.koT > 0) return;
     if (h.veh) { if (Input.hit('use')) this.leaveVeh(false); return; }
     let bd = 99;
-    for (const v of this.vehs.concat(this.cars)) { if (v.away > 0 || !this.owns(v)) continue; const d = Math.hypot(v.x - h.x, v.z - h.z), reach = v.type === 'car' ? 4.2 : 6; if (d < reach && d < bd && Math.abs(h.y - (v.type === 'jet' ? v.y - 1.25 : v.y)) < 2.5) { bd = d; this.nearVeh = v; } }
+    for (const v of this.vehs.concat(this.cars, this.boats)) { if (v.away > 0 || !this.owns(v)) continue; const d = Math.hypot(v.x - h.x, v.z - h.z), reach = v.type === 'car' ? 4.2 : 6; if (d < reach && d < bd && Math.abs(h.y - (v.type === 'jet' ? v.y - 1.25 : v.y)) < 2.5) { bd = d; this.nearVeh = v; } }
     if (Input.hit('use')) {
       if (this.nearVeh) this.enterVeh(this.nearVeh);
       else if (this.nearAnimal) this.petAnimal(this.nearAnimal);
-      else if (h.on && h.y < 0.5 && !h.swim) { const car = this.vehs[0]; car.x = h.x; car.z = h.z; car.yaw = h.yaw; this.fx.smoke(h.x, 0.5, h.z, 8, '#dfe6f0'); this.enterVeh(car); } // BOLT brings the car
-      else this.text(h.x, h.y + 2.6, h.z, 'Land first!', '#fff', 20);
+      else if (h.on && h.y < 0.5 && !h.swim && this.waterDepth(h.x, h.z) < 0.05) { const car = this.vehs[0]; car.x = h.x; car.z = h.z; car.yaw = h.yaw; this.fx.smoke(h.x, 0.5, h.z, 8, '#dfe6f0'); this.enterVeh(car); } // BOLT brings the car
+      else this.text(h.x, Math.max(h.y, 0) + 2.6, h.z, h.swim || h.wade ? 'Cars cannot swim!' : 'Land first!', '#fff', 20);
     }
   },
   enterVeh(v) {
-    const h = this.h; h.veh = v; h.x = v.x; h.z = v.z; h.y = v.y; h.yaw = v.yaw; this.camYaw = lerpA(this.camYaw, v.yaw, 0.5); h.vx = h.vz = h.vy = 0; h.atk = null; h.chute = false; h.climb = false; h.jet = false; v.speed = 0; v.air = false; v.cd = 0;
+    const h = this.h; h.veh = v; h.x = v.x; h.z = v.z; h.y = v.y; h.yaw = v.yaw; this.camYaw = lerpA(this.camYaw, v.yaw, 0.5); h.vx = h.vz = h.vy = 0; h.atk = null; h.chute = false; h.climb = false; h.jet = false; h.swim = false; h.wade = false; v.speed = 0; v.air = false; v.cd = 0;
     if (v.type === 'car') this.collide(h, 1.35);
     Snd.play('build'); const first = !S.stats['rode_' + v.type]; S.stats['rode_' + v.type] = 1;
-    if (first) this.say(v.type === 'car' ? 'Your car! Hold UP to drive and steer with LEFT and RIGHT. Hold J for turbo, and you can ram robots!' : v.type === 'heli' ? 'Hold SPACE to fly up and SHIFT to come down. K fires rockets. Press F in the air to jump out with a parachute!' : 'Hold UP to take off! In the air, UP climbs and DOWN dives. K fires missiles at robot bases. F ejects you with a parachute!', 8);
+    if (first) this.say(v.type === 'boat' ? 'A speedboat! Hold UP to go and steer with LEFT and RIGHT. Follow the red buoys to Treasure Island. You can catch fish by driving over them!' : v.type === 'car' ? 'Your car! Hold UP to drive and steer with LEFT and RIGHT. Hold J for turbo, and you can ram robots!' : v.type === 'heli' ? 'Hold SPACE to fly up and SHIFT to come down. K fires rockets. Press F in the air to jump out with a parachute!' : 'Hold UP to take off! In the air, UP climbs and DOWN dives. K fires missiles at robot bases. F ejects you with a parachute!', 8);
   },
   leaveVeh(silent) {
     const h = this.h, v = h.veh; if (!v) return; h.veh = null; v.x = h.x; v.z = h.z; v.y = h.y; v.yaw = h.yaw; v.speed = 0;
@@ -43,6 +43,10 @@ Object.assign(World.prototype, {
     if (silent) { if (v.type !== 'car') this.homeVeh(v); return; }
     if (v.type === 'jet' && !air) h.y = f;
     if (air) { h.chute = true; h.on = false; h.vy = 4; h.vx = Math.sin(h.yaw) * 6; h.vz = Math.cos(h.yaw) * 6; v.away = 9; Snd.play('jump'); this.setBanner(v.type === 'jet' ? 'EJECT!' : 'PARACHUTE!', 'Steer with the arrows and land anywhere - even on a roof', '#7df9ff', 2); }
+    else if (v.type === 'boat') { // step onto a pier when one is close, otherwise hop into the water
+      let p = null; for (const [x, z0, z1] of [[PIER_X, SHORE - 4, PIER_Z1], [ISLE.x, ISLE.z - ISLE.r - 14, ISLE.z - ISLE.r + 3]]) if (Math.abs(h.x - x) < 9 && h.z > z0 - 6 && h.z < z1 + 6) p = [x, clamp(h.z, z0 + 1, z1 - 1)];
+      if (p) { h.x = p[0]; h.z = p[1]; h.y = 0.25; h.on = true; } else { h.x += Math.cos(h.yaw) * 2.6; h.z -= Math.sin(h.yaw) * 2.6; h.y = 0; h.on = false; } h.vy = 0; Snd.play('click');
+    }
     else { h.x += Math.cos(h.yaw) * (v.type === 'car' ? 1.9 : 3); h.z -= Math.sin(h.yaw) * (v.type === 'car' ? 1.9 : 3); this.collide(h, 0.55); h.on = true; h.vy = 0; Snd.play('click'); }
     if (this.pal) { this.pal.x = h.x - 1; this.pal.z = h.z - 1; }
   },
@@ -60,7 +64,8 @@ Object.assign(World.prototype, {
     if (h.hurtT > 0) h.hurtT -= dt; if (h.inv > 0) h.inv -= dt; if (h.boost > 0) h.boost -= dt;
     h.en = Math.min(h.maxEn, h.en + Calc.regen() * dt); h.calm += dt; if (h.calm > 6 && h.hp < h.maxHp) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * 0.05 * dt);
     if (this.comboT > 0) { this.comboT -= dt; if (this.comboT <= 0) this.combo = 0; } if (this.comboPop > 0) this.comboPop -= dt * 5;
-    if (v.type === 'car') {
+    if (v.type === 'boat') this.upBoat(dt, v, turn, up, dn);
+    else if (v.type === 'car') {
       const turbo = Input.held('punch') && up && h.en > 1; if (turbo) h.en -= 14 * dt;
       const K = CAR_KINDS[v.kind || 'sports']; // every kind of car has its own speed and handling
       v.speed += (up ? K.acc * (turbo ? 1.5 : 1) : dn ? (v.speed > 0 ? -34 : -14) : 0) * dt; if (!up && !dn) v.speed *= Math.pow(0.3, dt); v.speed = clamp(v.speed, -10, K.max * (turbo ? 1.4 : 1));
@@ -68,7 +73,7 @@ Object.assign(World.prototype, {
       h.x += sn() * v.speed * dt; h.z += cs() * v.speed * dt; h.y = 0;
       if (this.collide(h, 1.35)) { if (Math.abs(v.speed) > 12) { this.shake = Math.max(this.shake, 0.25); Snd.play('hit'); this.fx.spark(h.x + sn() * 2, 0.6, h.z + cs() * 2, 6, '#ffd23f'); } v.speed *= Math.abs(v.speed) > 5 ? 0.55 : 0.92; }
       if (this.carBump(h, 1.5, v)) v.speed *= 0.6;
-      if (this.inWater(h.x + sn() * sign(v.speed) * 2.2, h.z + cs() * sign(v.speed) * 2.2)) { h.x -= sn() * v.speed * dt; h.z -= cs() * v.speed * dt; if (Math.abs(v.speed) > 3) this.text(h.x, 2.6, h.z, 'Cars cannot swim!', '#7df9ff', 22); v.speed = 0; }
+      if (this.waterDepth(h.x + sn() * sign(v.speed) * 2.2, h.z + cs() * sign(v.speed) * 2.2) > 0.25) { h.x -= sn() * v.speed * dt; h.z -= cs() * v.speed * dt; if (Math.abs(v.speed) > 3) this.text(h.x, 2.6, h.z, 'Cars cannot swim!', '#7df9ff', 22); v.speed = 0; }
       v.spin = (v.spin || 0) + v.speed * dt * 2.8;
       if (Math.abs(v.speed) > 6) for (const e of this.en) { if (e.dead || e.flying || (e.ramT || 0) > this.t || Math.hypot(e.x - h.x, e.z - h.z) > e.r + 1.6) continue; e.ramT = this.t + 0.5; this.damage(e, Math.abs(v.speed) * 1.6 + Calc.punch(), true); v.speed *= e.boss ? 0.3 : 0.8; Snd.play('bighit'); this.shake = Math.max(this.shake, 0.3); }
       for (const c of this.crates) if (!c.dead && !c.y && Math.hypot(c.x - h.x, c.z - h.z) < 1.9) this.breakCrate(c);
@@ -94,13 +99,20 @@ Object.assign(World.prototype, {
         const dodge = this.inSolid(ax, h.y - 1.5, az) || this.inSolid(h.x + sn() * v.speed * 0.5, h.y - 1.5, h.z + cs() * v.speed * 0.5);
         h.vy = lerp(h.vy, dodge ? 22 : ((up ? 1 : 0) - (dn ? 1 : 0)) * 17, Math.min(1, dt * (dodge ? 6 : 2.2))); v.pitch = lerp(v.pitch, -h.vy / 45, Math.min(1, dt * 3));
         h.y = clamp(h.y + h.vy * dt, 3, 175);
-        if (Math.hypot(h.x + 127, h.z - 85) > 520) h.yaw = lerpA(h.yaw, Math.atan2(-127 - h.x, 85 - h.z), Math.min(1, dt * 1.3));
+        if (Math.hypot(h.x + 232, h.z - 172) > 660) h.yaw = lerpA(h.yaw, Math.atan2(-232 - h.x, 172 - h.z), Math.min(1, dt * 1.3));
         if (this.inSolid(h.x, h.y - 0.5, h.z)) { this.explode({ x: h.x, y: h.y, z: h.z, dmg: 0, rad: 7 }); this.leaveVeh(false); v.away = 14; h.inv = 2; this.setBanner('CRASH!', 'You ejected just in time. The jet will be repaired.', '#ff6b5a', 2.4); return; }
         if (h.y <= 3.2 && dn && this.inAirport(h.x, h.z) && Math.abs(h.x - AIR.rx) < 9) { v.air = false; h.y = 1.25; Snd.play('correct'); this.text(h.x, 4, h.z, 'Perfect landing!', '#5dff9a', 26); }
       }
       h.x += sn() * v.speed * dt; h.z += cs() * v.speed * dt;
       if (Input.hit('blast')) this.vehFire(v);
     }
+  },
+  upBoat(dt, v, turn, up, dn) { // boats need water under them: they stop where it gets shallow
+    const h = this.h; v.speed += (up ? 15 : dn ? (v.speed > 0 ? -22 : -8) : 0) * dt; if (!up && !dn) v.speed *= Math.pow(0.5, dt); v.speed = clamp(v.speed, -6, 25);
+    h.yaw = wrapA(h.yaw - turn * clamp(v.speed / 8, -1, 1) * 1.5 * dt); v.lean = lerp(v.lean || 0, -turn * clamp(v.speed / 25, 0, 1) * 0.3, Math.min(1, dt * 4));
+    const fx = Math.sin(h.yaw), fz = Math.cos(h.yaw), nx = h.x + fx * v.speed * dt, nz = h.z + fz * v.speed * dt, s = sign(v.speed) || 1;
+    if (this.waterDepth(nx + fx * s * 2.8, nz + fz * s * 2.8) > 0.5 && this.waterDepth(nx, nz) > 0.5) { h.x = nx; h.z = nz; } else { if (Math.abs(v.speed) > 6) { Snd.play('hit'); this.text(h.x, 2.6, h.z, 'Too shallow for the boat!', '#7df9ff', 22); } v.speed *= -0.25; }
+    h.y = 0; h.vy = 0; if (this.collide(h, 2.2)) v.speed *= 0.6;
   },
   drawVehs(t) {
     const h = this.h, col = C3(SUITS[S.suit][0]);
@@ -116,16 +128,16 @@ Object.assign(World.prototype, {
   },
   hudVehs(g) {
     const h = this.h;
-    for (const v of this.vehs) {
+    for (const v of this.vehs.concat(this.boats)) {
       if (v.away > 0 || h.veh === v) continue; const d = Math.hypot(v.x - h.x, v.z - h.z); if (d > (this.owns(v) ? 90 : 45)) continue;
       const s = this.toScreen(v.x, v.y + (v.type === 'car' ? 2.4 : v.type === 'heli' ? 4.6 : 3.4), v.z); if (!s) continue; const I = VEH_INFO[v.type], sc = clamp(22 / s[2], 0.6, 1.1);
       if (!this.owns(v)) this.pill(g, s[0], s[1], `🔒 ${I.icon} ${I.name} - ${I.cost} coins at the airport office`, '#a9b8d8', sc);
-      else if (this.nearVeh === v && !h.veh) this.pill(g, s[0], s[1], UI.isTouch ? `${I.icon} Tap F to ${v.type === 'car' ? 'drive' : 'fly'}!` : `${I.icon} Press F to ${v.type === 'car' ? 'drive' : 'fly'}!`, '#ffe14d', 1.1);
+      else if (this.nearVeh === v && !h.veh) this.pill(g, s[0], s[1], `${I.icon} ${UI.isTouch ? 'Tap' : 'Press'} F to ${v.type === 'car' ? 'drive' : v.type === 'boat' ? 'ride' : 'fly'}!`, '#ffe14d', 1.1);
       else if (d < 60) this.pill(g, s[0], s[1], I.icon + ' ' + I.name, '#7df9ff', sc);
     }
     const v = h.veh;
-    if (v && v.type !== 'car') { g.fillStyle = 'rgba(10,14,26,0.72)'; rr(g, W / 2 - 150, 622, 300, 38, 14); g.fill(); g.fillStyle = '#7df9ff'; g.font = `bold 18px ${FONT}`; g.textAlign = 'center'; g.fillText(`${VEH_INFO[v.type].icon}  ALTITUDE ${Math.round(h.y)} m   •   SPEED ${Math.round(Math.abs(v.speed) * 3.6)}`, W / 2, 642); }
-    else if (v) { g.fillStyle = 'rgba(10,14,26,0.72)'; rr(g, W / 2 - 90, 622, 180, 38, 14); g.fill(); g.fillStyle = '#7df9ff'; g.font = `bold 18px ${FONT}`; g.textAlign = 'center'; g.fillText(`🚗  ${Math.round(Math.abs(v.speed) * 3.6)} km/h`, W / 2, 642); }
+    if (v && v.type !== 'car' && v.type !== 'boat') { g.fillStyle = 'rgba(10,14,26,0.72)'; rr(g, W / 2 - 150, 622, 300, 38, 14); g.fill(); g.fillStyle = '#7df9ff'; g.font = `bold 18px ${FONT}`; g.textAlign = 'center'; g.fillText(`${VEH_INFO[v.type].icon}  ALTITUDE ${Math.round(h.y)} m   •   SPEED ${Math.round(Math.abs(v.speed) * 3.6)}`, W / 2, 642); }
+    else if (v) { g.fillStyle = 'rgba(10,14,26,0.72)'; rr(g, W / 2 - 90, 622, 180, 38, 14); g.fill(); g.fillStyle = '#7df9ff'; g.font = `bold 18px ${FONT}`; g.textAlign = 'center'; g.fillText(`${v.type === 'boat' ? '🚤' : '🚗'}  ${Math.round(Math.abs(v.speed) * 3.6)} km/h`, W / 2, 642); }
   },
 
   /* ---------------- robot bases ---------------- */

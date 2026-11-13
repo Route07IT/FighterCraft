@@ -42,7 +42,7 @@ Object.assign(World.prototype, {
     } else if (id === 'pause') {
       html = `<div class="dim"><div class="panel center">${X}<h2>⏸ PAUSED</h2><button class="btn gold" data-act="close" data-key="enter">▶ KEEP PLAYING</button>
         <div class="brow"><button class="btn" data-act="power">⚡ MY POWER</button><button class="btn" data-act="badges">🏅 BADGES</button><button class="btn" data-act="settings">⚙️ SETTINGS</button></div>
-        ${this.mis ? '<button class="btn gray" data-act="abandon">🏳️ LEAVE MISSION</button>' : '<button class="btn gray" data-act="home">🏙️ JUMP TO THE PLAZA</button>'}</div></div>`;
+        ${this.mis ? '<button class="btn gray" data-act="abandon">🏳️ LEAVE MISSION</button>' : '<button class="btn gray" data-act="home">🏙️ JUMP TO THE PLAZA</button>'}<div class="sub" style="opacity:.75">Fighter Craft  •  a game by Moussa Krayem</div></div></div>`;
     } else if (id === 'ko') {
       const near = this.nextDistrict(), rec = near >= 0 ? Calc.recPower(S.stage) : 0;
       html = `<div class="dim"><div class="panel center res">${X}<h2>BOLT RESCUED YOU!</h2><div class="tipbox"><b>BOLT:</b> Those robots were too strong! Look at the ⚡ number over a robot: <b style="color:#17914a">green</b> means you are ready, <b style="color:#c81e1e">red</b> means train first. Your Power is ${p}${rec ? `, and your next mission needs ${rec}` : ''}.</div>

@@ -11,10 +11,27 @@ function fit() { // scale the 1280x720 stage to fill any window or screen
   stageEl.style.transform = `translate(${view.ox}px,${view.oy}px) scale(${s})`;
 }
 addEventListener('resize', fit); fit();
+for (const ev of ['orientationchange', 'fullscreenchange', 'webkitfullscreenchange']) addEventListener(ev, () => { fit(); setTimeout(fit, 350); }); document.addEventListener('fullscreenchange', fit); document.addEventListener('webkitfullscreenchange', fit);
+if (window.visualViewport) visualViewport.addEventListener('resize', fit);
 cv.addEventListener('pointerdown', e => { Snd.init(); Input.mouse.x = (e.clientX - view.ox) / view.s; Input.mouse.y = (e.clientY - view.oy) / view.s; Input.mouse.clicked = true; });
 addEventListener('contextmenu', e => e.preventDefault());
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-function toggleFull() { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) { /* not allowed */ } }
+/* Full screen. Phones differ: Android needs the prefixed call on some browsers, and an iPhone cannot make a
+   web page full screen at all - there the game has to be added to the home screen (it then opens full screen). */
+const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+function isFull() { return !!(document.fullscreenElement || document.webkitFullscreenElement) || navigator.standalone === true || !!(window.matchMedia && matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches); }
+function fullHelp() { UI.toast(isIOS ? '📱 On an iPhone or iPad: tap the <b>Share</b> button, then <b>Add to Home Screen</b>.<br>Open Fighter Craft from the home screen and it fills the whole screen!' : 'Full screen is blocked in this browser. Open the page in Chrome, or add it to your home screen.', 11000); }
+function toggleFull(quiet) {
+  const d = document, el = d.documentElement, help = () => { if (!quiet) fullHelp(); };
+  try {
+    if (d.fullscreenElement || d.webkitFullscreenElement) { if (!quiet) (d.exitFullscreen || d.webkitExitFullscreen).call(d); return; }
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.webkitRequestFullScreen || el.msRequestFullscreen;
+    if (!req) { help(); return; }
+    const lock = () => { try { if (screen.orientation && screen.orientation.lock) { const q = screen.orientation.lock('landscape'); if (q && q.catch) q.catch(() => { /* not supported */ }); } } catch (e) { /* not supported */ } setTimeout(fit, 300); };
+    const p = req.call(el, { navigationUI: 'hide' });
+    if (p && p.then) p.then(lock, help); else setTimeout(lock, 300);
+  } catch (e) { help(); }
+}
 
 const Game = {
   scene: null,
@@ -25,7 +42,7 @@ const UI = {
   isTouch: !!(window.matchMedia && matchMedia('(pointer: coarse)').matches), handler: null,
   set(html, handler) { uiEl.innerHTML = html; this.handler = handler || null; },
   clear() { uiEl.innerHTML = ''; this.handler = null; },
-  toast(html) { const d = document.createElement('div'); d.className = 'toast'; d.innerHTML = html; stageEl.appendChild(d); setTimeout(() => d.remove(), 3200); },
+  toast(html, ms = 3200) { const d = document.createElement('div'); d.className = 'toast'; d.innerHTML = html; if (ms > 5000) d.style.animationDuration = ms + 'ms'; stageEl.appendChild(d); setTimeout(() => d.remove(), ms); },
   badgeToasts(list) { list.forEach((b, i) => setTimeout(() => { UI.toast(`${b.icon} New badge: ${b.name}!`); Snd.play('levelup'); }, 400 + i * 900)); },
   touch(on) {
     touchEl.style.display = on && this.isTouch ? 'block' : 'none';
@@ -135,10 +152,11 @@ class Title {
   menu() {
     UI.set(`<div class="title"><div class="logo"><span>FIGHTER</span><span class="craft">CRAFT</span></div>
       <div class="tag2">Save Nova City. Earn the armor. Become a legend.</div>
+      <div class="madeby">A game by <b>Moussa Krayem</b></div>
       <button class="btn gold huge" data-act="play" data-key="enter">▶ ${S.started ? 'CONTINUE' : 'PLAY'}</button>
       ${S.started ? `<div class="tag3">${esc(S.name)}  •  Level ${S.level}  •  ⚡ Power ${Calc.power()}</div>` : ''}
-      <button class="mini fs" data-act="full">⛶ Full screen</button></div>`,
-      a => { if (a === 'full') toggleFull(); else if (S.started) goWorld(); else this.setup(); });
+      ${isFull() ? '' : '<button class="mini fs" data-act="full">⛶ Full screen</button>'}</div>`,
+      a => { if (a === 'full') { toggleFull(); return; } if (UI.isTouch && !isFull()) toggleFull(true); if (S.started) goWorld(); else this.setup(); }); // on phones PLAY also asks for full screen
   }
   setup() {
     this.hero = true;

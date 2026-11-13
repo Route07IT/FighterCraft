@@ -108,7 +108,14 @@ const BADGES = [
   { id: 'home', icon: '🏠', name: 'Home Owner', desc: 'Buy your own house', ok: () => S.house >= 1 },
   { id: 'pet', icon: '🐶', name: 'Best Friend', desc: 'Get a pet', ok: () => Object.keys(S.pets).length >= 1 },
   { id: 'fish10', icon: '🐟', name: 'Fisher', desc: 'Have 10 fish at once', ok: () => S.fish >= 10 },
-  { id: 'zoo', icon: '🐘', name: 'Animal Friend', desc: 'Pet all 5 kinds of jungle animals', ok: () => Object.keys(S.friends).length >= 5 },
+  { id: 'zoo', icon: '🐘', name: 'Animal Friend', desc: 'Pet 5 kinds of wild animals', ok: () => Object.keys(S.friends).length >= 5 },
+  { id: 'zoo2', icon: '🦁', name: 'King of the Wild', desc: 'Pet 12 kinds of wild animals', ok: () => Object.keys(S.friends).length >= 12 },
+  { id: 'stars10', icon: '⭐', name: 'Star Seeker', desc: 'Find 10 golden stars', ok: () => Object.keys(S.stars).length >= 10 },
+  { id: 'stars30', icon: '🌠', name: 'Star Master', desc: 'Find all 30 golden stars', ok: () => Object.keys(S.stars).length >= 30 },
+  { id: 'caves', icon: '🔦', name: 'Cave Explorer', desc: 'Find all 3 caves', ok: () => S.stats.in_cave1 && S.stats.in_cave2 && S.stats.in_cave3 },
+  { id: 'gems', icon: '💎', name: 'Crystal Miner', desc: 'Dig out 10 crystals', ok: () => (S.stats.gems || 0) >= 10 },
+  { id: 'boat', icon: '🚤', name: 'Captain', desc: 'Ride a speedboat', ok: () => S.stats.rode_boat },
+  { id: 'pirate', icon: '🏴‍☠️', name: 'Treasure Hunter', desc: 'Open the pirate chest', ok: () => (S.stats.chest || 0) >= 1 },
   { id: 'invest', icon: '📈', name: 'Investor', desc: 'Own shares in 3 companies', ok: () => Object.values(S.bank.sh).filter(n => n > 0).length >= 3 },
   { id: 'base1', icon: '📡', name: 'Base Buster', desc: 'Destroy a robot base', ok: () => S.bases.some(Boolean) },
   { id: 'pal1', icon: '🤖', name: 'Robot Friend', desc: 'Build your first Robo-Pal', ok: () => Object.keys(S.palLv).length >= 1 },
@@ -123,6 +130,10 @@ function checkBadges() { // returns newly earned badges
 }
 
 const TIPS = [
+  '30 golden stars are hidden in the world. Look on roofs, on the island, in caves and high in the sky!',
+  'A speedboat waits at the end of the pier on the beach. Follow the red buoys to Treasure Island!',
+  'West of the city, past the jungle, is the savanna with lions, zebras and giraffes. People say there is a secret behind the waterfall...',
+  'In the sea you wade first and swim where it gets deep. Press JUMP in deep water to leap out.',
   'Robots flash red before they attack. Jump away when you see it!',
   'Power does not come from luck. It comes from practice!',
   'Every armor piece you earn makes the whole city better.',

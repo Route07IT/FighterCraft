@@ -10,22 +10,22 @@ const B3 = { crusher: { r: 2.0, h: 5.3 }, viper: { r: 1.4, h: 5.7 }, warden: { r
 Object.assign(World.prototype, {
   /* ---------------- hero ---------------- */
   upHero(dt) {
-    const h = this.h, wet = !h.chute && h.y < 0.7 && this.inWater(h.x, h.z), sp = Calc.speed() / 38 * (wet ? 0.5 : 1) * (h.fSpd > 0 ? 1.2 : 1) * (S.pet === 'bunny' ? 1.05 : 1), m = this.mis, alive = !(this.koT > 0) && !(m && (m.state === 'win' || m.state === 'lose')), ctl = alive && h.hurtT <= 0 && h.superT <= 0;
+    const h = this.h, dep = h.chute ? 0 : this.waterDepth(h.x, h.z), wet = dep > (h.swim ? 1.05 : 1.3) && h.y <= SWIM_Y + 0.2 && h.vy <= 0.01, wade = !wet && dep > 0.35 && h.y < 0.4 - dep, sp = Calc.speed() / 38 * (wet ? 0.55 : wade ? 1 - Math.min(dep, 1.3) * 0.36 : 1) * (h.fSpd > 0 ? 1.2 : 1) * (S.pet === 'bunny' ? 1.05 : 1), m = this.mis, alive = !(this.koT > 0) && !(m && (m.state === 'win' || m.state === 'lose')), ctl = alive && h.hurtT <= 0 && h.superT <= 0;
     const turn = ctl ? (Input.held('right') ? 1 : 0) - (Input.held('left') ? 1 : 0) : 0; let fw = ctl ? (Input.held('up') ? 1 : 0) - (Input.held('dn') ? 0.55 : 0) : 0;
-    h.swim = wet; h.yaw = wrapA(h.yaw - turn * 2.7 * dt); if (h.atk && h.on) fw *= 0.3; h.mv = fw;
+    if (wet && !h.swim && h.vy < -3) { this.fx.spark(h.x, 0.2, h.z, 18, '#dff4ff', 6); Snd.play('jump'); } h.swim = wet; h.wade = wade; h.yaw = wrapA(h.yaw - turn * 2.7 * dt); if (h.atk && h.on) fw *= 0.3; h.mv = fw;
     const k = 1 - Math.exp(-dt * (h.hurtT > 0 ? 3 : 12)); h.vx = lerp(h.vx, Math.sin(h.yaw) * fw * sp, k); h.vz = lerp(h.vz, Math.cos(h.yaw) * fw * sp, k);
-    if (ctl && !wet && Input.hit('jump')) {
-      if (h.on) { h.vy = 9.4; h.on = false; h.jumps = 1; Snd.play('jump'); }
+    if (ctl && Input.hit('jump')) {
+      if (h.on || wet) { h.vy = wet ? 8.8 : 9.4; h.on = false; h.jumps = 1; Snd.play('jump'); if (wet) this.fx.spark(h.x, 0.2, h.z, 12, '#dff4ff', 5); } // from deep water this is a leap, to get onto a pier or a boat
       else if (S.armor[0] && h.jumps < 2) { h.vy = 8.6; h.jumps = 2; Snd.play('jump'); this.fx.ring(h.x, h.z, '#39d0ff', 1.6, h.y); }
     }
     h.jet = false;
     if (ctl && S.armor[3] && !h.on && !h.climb && !h.chute && Input.held('jump') && h.vy < 3 && h.en > 2 && h.y < 90) { h.vy = Math.min(h.vy + 62 * dt, 6.5); h.en -= 20 * dt; h.jet = true; if (Math.random() < 0.5) this.fx.add({ k: 0, x: h.x - Math.sin(h.yaw) * 0.3, y: h.y + 0.9, z: h.z - Math.cos(h.yaw) * 0.3, vx: rand(-1, 1), vy: -6, vz: rand(-1, 1), life: 0.25, max: 0.25, c: C3('#ffb347'), s: 0.09, g: 0 }); }
-    if (wet) { h.vy = 0; h.y = lerp(h.y, -1.15, Math.min(1, dt * 5)); } else { h.vy -= 24 * dt; if (h.chute) h.vy = Math.max(h.vy, -7); h.y += h.vy * dt; } h.x += h.vx * dt; h.z += h.vz * dt;
+    if (wet && h.vy <= 0.01) { h.vy = 0; h.y = lerp(h.y, SWIM_Y, Math.min(1, dt * 5)); } else { h.vy -= 24 * dt; if (h.chute) h.vy = Math.max(h.vy, -7); h.y += h.vy * dt; } h.x += h.vx * dt; h.z += h.vz * dt;
     const wall = this.collide(h, 0.55); h.climb = false; this.carBump(h, 0.55);
     if (wall && ctl && !wet && Input.held('jump') && fw > 0 && wall.top > h.y + 0.3) { const nx = clamp(h.x, wall.x0, wall.x1), nz = clamp(h.z, wall.z0, wall.z1); h.vy = 4.6; h.climb = true; h.on = false; h.jumps = 0; h.chute = false; h.rope = { x: lerp(nx, h.x, 0.45), z: lerp(nz, h.z, 0.45), top: wall.top }; h.yaw = lerpA(h.yaw, Math.atan2(nx - h.x, nz - h.z), Math.min(1, dt * 12)); } // climb any wall: run into it and hold JUMP
     if (m) { const dx = h.x - m.cx, dz = h.z - m.cz, d = Math.hypot(dx, dz); if (d > m.R - 1) { h.x = m.cx + dx / d * (m.R - 1); h.z = m.cz + dz / d * (m.R - 1); } }
-    const f = this.floorAt(h.x, h.z, h.y);
-    if (wet) { h.on = true; h.jumps = 0; h.chute = false; } else if (h.y <= f) { if (!h.on && h.vy < -9) this.fx.smoke(h.x, f + 0.1, h.z, 2, '#c8c8d2'); h.y = f; h.vy = 0; h.on = true; h.jumps = 0; h.chute = false; } else if (h.y > f + 0.05) h.on = false;
+    let f = this.floorAt(h.x, h.z, h.y); const d2 = h.chute ? 0 : this.waterDepth(h.x, h.z); if (d2 > 0 && f <= 0) f = -d2; // under water the ground slopes down
+    if (wet && h.vy <= 0.01) { h.on = true; h.jumps = 0; h.chute = false; } else if (h.y <= f || (d2 > 0 && h.on && h.vy <= 0 && h.y < f + 0.4)) { if (!h.on && h.vy < -9) this.fx.smoke(h.x, f + 0.1, h.z, 2, '#c8c8d2'); h.y = f; h.vy = 0; h.on = true; h.jumps = 0; h.chute = false; } else if (h.y > f + 0.05) h.on = false;
     // attacks
     if (ctl && !wet && (Input.hit('punch') || Input.mouse.clicked)) { if (!h.atk) this.startAtk(); else if (h.atk.t > h.atk.dur * 0.3) h.buf = true; }
     if (h.atk) {

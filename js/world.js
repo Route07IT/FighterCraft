@@ -6,7 +6,7 @@
    (combat.js, vehicles.js and panels.js extend this class.)
    ============================================================ */
 const CS = 14, GN = 25, GC = 12, WORLD_R = GN * CS / 2, FLY_R = 430;
-const BND = { x0: -430, x1: WORLD_R, z0: -WORLD_R, z1: 345 }, SHORE = WORLD_R + 20; // the whole map: city + jungle (west) + beach and sea (south)
+const BND = { x0: -640, x1: WORLD_R, z0: -WORLD_R, z1: 520 }, SHORE = WORLD_R + 20; // the whole map: city + jungle and savanna (west) + beach, sea and island (south)
 const cellX = i => (i - GC) * CS;
 const ARENAS = [{ i: 12, j: 20 }, { i: 20, j: 12 }, { i: 12, j: 4 }, { i: 4, j: 12 }, { i: 20, j: 4 }], RUMBLE_AT = { i: 4, j: 20 }, ARENA_R = 30;
 const BASE_AT = [{ i: 7.5, j: 22.5 }, { i: 22.5, j: 7.5 }, { i: 7.5, j: 1.5 }, { i: 1.5, j: 7.5 }, { i: 16.5, j: 1.5 }]; // one robot base per district
@@ -77,7 +77,7 @@ class World {
     this.combo = 0; this.comboT = 0; this.comboPop = 0; this.maxCombo = 0; this.coinPulse = 0; this.roamT = 2; this.saidDizzy = false; this.hint = 0;
     this.bolt = { x: 1.5, y: 2.2, z: 6 }; this.proj = M4.persp(1.05, W / H, 0.3, 950); this.vp = M4.id();
     this.vehs = [{ type: 'car', x: 7, y: 0, z: 13, yaw: 0, speed: 0, spin: 0, away: 0 }, { type: 'heli', x: AIR.heli[0], y: 0, z: AIR.heli[1], yaw: 0, speed: 0, away: 0 }, { type: 'jet', x: AIR.jet[0], y: 1.25, z: AIR.jet[1], yaw: 0, speed: 0, away: 0, roll: 0, pitch: 0 }];
-    this.pal = null; this.bases = []; this.cars = []; this.traffic = []; this.room = null; this.animals = []; this.fish = []; this.fires = []; this.zones = [];
+    this.pal = null; this.bases = []; this.cars = []; this.traffic = []; this.room = null; this.animals = []; this.fish = []; this.fires = []; this.zones = []; this.boats = []; this.stars = []; this.tlights = []; this.tod = 0.34; this.night = 0;
     this.build(); this.initLife(); this.initPal();
   }
   refresh(full) { const h = this.h; h.maxHp = Calc.maxHp(); h.maxEn = Calc.maxEnergy(); this.power = Calc.power(); if (full) { h.hp = h.maxHp; h.en = h.maxEn; } else { h.hp = Math.min(h.hp, h.maxHp); h.en = Math.min(h.en, h.maxEn); } }
@@ -115,9 +115,9 @@ class World {
   build() {
     const L = this.L = Calc.cityLevel(), A = S.armor; this.env = this.envFor(L, A);
     this.solids = []; this.props = []; this.lamps = []; this.roofs = []; this.cellSolid = new Uint16Array(GN * GN);
-    G3.staticBegin(470000);
+    G3.staticBegin(900000);
     const gold = L >= 5, day = L >= 3, pave = C3(day ? '#b4bccb' : '#666a78');
-    G3.abox(0, -0.5, 0, 700, 0.5, 700, C3(day ? '#555b68' : '#3a3d47'), 9);
+    G3.abox(-230, -0.5, 170, 950, 0.5, 900, C3(day ? '#555b68' : '#3a3d47'), 9);
     G3.abox(0, 0.04, 0, 2.5 * CS, 0.04, 2.5 * CS, C3(gold ? '#ecd9a0' : L >= 3 ? '#c2cada' : L >= 1 ? '#868da0' : '#62656f'), 10);
     for (let k = 0; k < 8; k++) G3.box(M4.ry(M4.t(ID4, 0, 0.09, 0), k * 0.3927), 4.4, 0.012, 0.12, C3(gold ? '#ffd23f' : '#39d0ff'), L >= 1 ? 0.5 : 0.2);
     G3.amesh(0, 0.09, 0, CYL, 1.3, 0.02, 1.3, C3(gold ? '#ffd23f' : '#39d0ff'), L >= 1 ? 0.5 : 0.2);
@@ -125,38 +125,7 @@ class World {
     G3.abox(cellX(RUMBLE_AT.i), 0.04, cellX(RUMBLE_AT.j), 2.5 * CS, 0.04, 2.5 * CS, C3('#74504e'), 10);
     const lane = C3(day ? '#eef1f6' : '#b3a468');
     for (let k = 0; k < GN; k += 3) for (let q = 0; q < GN; q++) { if (q % 3 === 0 || !this.isBlockRoad(k, q)) continue; G3.abox(cellX(k), 0.02, cellX(q), 0.13, 0.02, 2.4, lane); G3.abox(cellX(q), 0.02, cellX(k), 2.4, 0.02, 0.13, lane); }
-    // buildings
-    for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) {
-      if (this.isOpen(i, j)) continue;
-      const shop = SHOPS.find(q => q.i === i && q.j === j); if (shop) { this.buildShop(shop); continue; }
-      const d = this.districtOf(i, j), ruin = d === 5 ? L === 0 : !A[d], r = rng(i * 131 + j * 977 + 5), pal = DPAL[d], hr = DH[d];
-      let h = hr[0] + r() * (hr[1] - hr[0]); const low = r() < 0.2; if (low) h = 5 + r() * 4;
-      let col = C3(pal[Math.floor(r() * 4)]); if (ruin) { col = mulC(mixC(col, [0.38, 0.36, 0.4], 0.6), 0.85); h *= 0.55 + r() * 0.3; } else if (gold && d === 5) col = mixC(col, C3('#e8d59a'), 0.35);
-      const half = CS / 2 - 1 - r() * 0.8, x = cellX(i), z = cellX(j), E = CS / 2;
-      const x0 = x - (this.isOpen(i - 1, j) ? half : E), x1 = x + (this.isOpen(i + 1, j) ? half : E), z0 = z - (this.isOpen(i, j - 1) ? half : E), z1 = z + (this.isOpen(i, j + 1) ? half : E), mx = (x0 + x1) / 2, mz = (z0 + z1) / 2, hx = (x1 - x0) / 2, hz = (z1 - z0) / 2;
-      G3.abox(x, 0.1, z, CS / 2 - 0.25, 0.1, CS / 2 - 0.25, pave, 10);
-      G3.abox(mx, h / 2, mz, hx, h / 2, hz, col, 2 + d);
-      this.solids.push({ x0, x1, z0, z1, top: h }); this.cellSolid[i + j * GN] = this.solids.length; this.roofs.push([mx, mz, h, hx, hz]);
-      if (ruin) { const n = 2 + Math.floor(r() * 2); for (let q = 0; q < n; q++) { const bh = 1 + r() * 5, bs = half * (0.25 + r() * 0.3); G3.box(M4.ry(M4.t(ID4, x + (r() - 0.5) * half, h + bh / 2, z + (r() - 0.5) * half), r()), bs, bh / 2, bs * 0.7, col, 2 + d); } }
-      else {
-        G3.abox(mx, h + 0.22, mz, hx + 0.22, 0.22, hz + 0.22, mulC(col, 0.78)); // cornice
-        if (!low && r() < 0.4) { const th = 4 + r() * h * 0.3, ts = 0.55 + r() * 0.2; G3.abox(mx, h + th / 2, mz, hx * ts, th / 2, hz * ts, mixC(col, WHITE, 0.08), 2 + d); this.solid(mx - hx * ts, mx + hx * ts, mz - hz * ts, mz + hz * ts, h + th); G3.abox(mx, h + th + 0.18, mz, hx * ts + 0.18, 0.18, hz * ts + 0.18, mulC(col, 0.78)); if (gold && r() < 0.6) G3.amesh(mx, h + th + 5, mz, CONE, 1.2, 5, 1.2, C3('#ffd86b'), -0.9); }
-        else if (r() < 0.45) { const tx = mx + (r() - 0.5) * hx, tz = mz + (r() - 0.5) * hz; G3.amesh(tx, h + 1.5, tz, CYX, 1.0, 1.1, 1.0, C3('#8a6a4a'), 0); G3.amesh(tx, h + 2.9, tz, CONE, 1.1, 0.35, 1.1, C3('#5a4030'), 0); G3.amesh(tx, h + 0.3, tz, CYX, 0.12, 0.4, 0.12, C3('#3a3d48'), 0); }
-        if (r() < 0.5) G3.abox(mx + (r() - 0.5) * hx, h + 0.75, mz + (r() - 0.5) * hz, 1.1, 0.5, 0.9, C3('#9aa0ac'), -0.4);
-        if (r() < 0.3) { G3.amesh(mx + hx * 0.5, h + 3.2, mz - hz * 0.5, CYX, 0.07, 3, 0.07, C3('#555a66'), 0); G3.amesh(mx + hx * 0.5, h + 6.3, mz - hz * 0.5, SPX, 0.16, 0.16, 0.16, C3('#ff4433'), 1); }
-        if (L >= 4 && r() < 0.5) { G3.abox(mx, h + 0.5, mz, hx * 0.7, 0.06, hz * 0.7, C3('#4fbf6b'), 11); G3.amesh(mx - hx * 0.3, h + 1.5, mz + hz * 0.25, SPX, 0.9, 0.9, 0.9, C3('#3fa85a'), 0); }
-        if (low) { const ac = C3(['#ff6b6b', '#ffd23f', '#5fd68a', '#4da6ff'][Math.floor(r() * 4)]); G3.abox(mx, 3.65, mz, hx + 0.75, 0.1, hz + 0.75, ac, -0.2); if (r() < 0.6) { G3.amesh(mx, h + 2.2, mz, CYX, 0.1, 1.8, 0.1, C3('#555a66'), 0); G3.abox(mx, h + 4.4, mz, 2.6, 1.1, 0.12, ac, 0.75); } }
-      }
-      if (d === 1 && r() < 0.7) G3.abox(x + (r() < 0.5 ? 1 : -1) * (half + 0.16), 6 + r() * 6, z + (r() - 0.5) * 5, 0.12, 1.2 + r() * 2, 2.2, C3(r() < 0.5 ? '#ff3df2' : '#3df2ff'), ruin ? 0.12 : 1);
-    }
-    // street lamps, trees and parked cars at crossings
-    for (let j = 0; j < GN; j += 3) for (let i = 0; i < GN; i += 3) {
-      if ((Math.abs(i - GC) <= 2 && Math.abs(j - GC) <= 2) || (i >= 17 && j >= 17)) continue;
-      const d = this.districtOf(i, j), ok = d === 5 ? L >= 1 : A[d], x = cellX(i) + CS / 2 - 0.9, z = cellX(j) + CS / 2 - 0.9, r = rng(i * 17 + j * 71);
-      G3.amesh(x, 3, z, CYX, 0.09, 3, 0.09, C3('#3a3d48'), -0.4); G3.box(M4.t(ID4, x - 0.45, 6, z), 0.55, 0.05, 0.06, C3('#3a3d48')); G3.amesh(x - 0.95, 5.88, z, SPX, 0.3, 0.14, 0.2, C3(DCOL[d]), ok ? 1 : 0.08); if (ok) this.lamps.push([x - 0.95, z, C3(DCOL[d])]);
-      if (ok && L >= 3 && r() < 0.8) tree3(cellX(i) - CS / 2 + 0.9, cellX(j) - CS / 2 + 0.9, 0.9 + r() * 0.3, d === 3);
-      if (r() < 0.45) { const cx = cellX(i) + (r() < 0.5 ? -1 : 1) * (CS / 2 - 1.6), cz = cellX(j) + (r() - 0.5) * 4 + (r() < 0.5 ? 16 : -16), cc = ok ? C3(['#e5383b', '#2f7df6', '#ffd23f', '#f4f8ff', '#2fbf71'][Math.floor(r() * 5)]) : C3('#34343c'); if (!this.inArena(cx, cz, 38) && Math.hypot(cx, cz) > 48 && !this.inAirport(cx, cz) && !this.nearBase(cx, cz, 18) && Math.abs(cx) < WORLD_R - 4 && Math.abs(cz) < WORLD_R - 4) { if (!this.carsMade) this.cars.push({ type: 'car', kind: ['sedan', 'van', 'pickup', 'taxi', 'sports', 'sedan'][Math.floor(r() * 6)], col: C3(['#e5383b', '#2f7df6', '#ffd23f', '#f4f8ff', '#2fbf71', '#9b5de5'][Math.floor(r() * 6)]), x: cx, y: 0, z: cz, yaw: 0, speed: 0, spin: 0, away: 0 }); } } // parked cars: anyone can drive them
-    }
+    this.buildBlocks(L, A, gold, pave); this.buildStreets(L, A); // city.js
     this.buildLandmarks(L, A); this.buildAirport(L); this.buildSpots(L); this.buildBases(); this.buildNature(L, A); this.carsMade = true;
     G3.staticEnd();
     this.makeMap();
@@ -167,7 +136,7 @@ class World {
       for (let n = 0; n < this.roofs.length; n += 9) { const R = this.roofs[n]; this.crates.push({ x: R[0], y: R[2], z: R[1], gold: true, hitT: 0, dead: false, resp: 0, rot: r() * 3, roof: true }); }
     }
     this.cits = []; const cr = rng(7 + L);
-    const addCit = (hx, hz, rad) => { const pal = ['#e5383b', '#2f7df6', '#ffd23f', '#2fbf71', '#9b5de5', '#ff8c1a', '#f4f8ff']; this.cits.push({ x: hx + (cr() - 0.5) * rad, z: hz + (cr() - 0.5) * rad, y: 0, hx, hz, rad, tx: hx, tz: hz, yaw: cr() * TAU, wait: cr() * 3, moving: false, ph: cr() * 9, s: 0.85 + cr() * 0.2, c1: C3(pal[Math.floor(cr() * 7)]), c2: C3(['#2a2e39', '#3a4a6a', '#5a4030'][Math.floor(cr() * 3)]), skin: C3(['#f2b98a', '#d99a6c', '#a86a44'][Math.floor(cr() * 3)]), hair: C3(['#3b2a20', '#1c1c22', '#c98f3c'][Math.floor(cr() * 3)]) }); };
+    const addCit = (hx, hz, rad) => { const pal = ['#e5383b', '#2f7df6', '#ffd23f', '#2fbf71', '#9b5de5', '#ff8c1a', '#f4f8ff']; this.cits.push({ x: hx + (cr() - 0.5) * rad, z: hz + (cr() - 0.5) * rad, y: 0, hx, hz, rad, tx: hx, tz: hz, yaw: cr() * TAU, wait: cr() * 3, moving: false, ph: cr() * 9, s: 0.85 + cr() * 0.2, c1: C3(pal[Math.floor(cr() * 7)]), c2: C3(['#2a2e39', '#3a4a6a', '#5a4030'][Math.floor(cr() * 3)]), skin: C3(['#f2b98a', '#d99a6c', '#a86a44'][Math.floor(cr() * 3)]), hair: C3(['#3b2a20', '#1c1c22', '#c98f3c'][Math.floor(cr() * 3)]), long: cr() < 0.4 }); };
     for (let n = 0; n < L * 2; n++) addCit(0, 0, 50);
     ARENAS.forEach((a, d) => { if (A[d]) for (let n = 0; n < 4; n++) addCit(cellX(a.i), cellX(a.j), 54); });
   }
@@ -242,9 +211,14 @@ class World {
     ARENAS.forEach((a, d) => this.pads.push({ id: 'd' + d, x: cellX(a.i), z: cellX(a.j), r: 3.2, col: DCOL[d], label: DISTRICTS[d].icon + ' ' + DISTRICTS[d].name, lx: cellX(a.i), lz: cellX(a.j), ly: 9, d }));
   }
   makeMap() { // little top-down map for the corner of the screen
-    const MS = this.MS = 150 / (BND.x1 - BND.x0), c = MS * CS, ox = (-BND.x0 - WORLD_R) * MS;
+    const MS = this.MS = 150 / (BND.x1 - BND.x0), c = MS * CS, X = x => (x - BND.x0) * MS, Z = z => (z - BND.z0) * MS, ox = X(-WORLD_R);
     this.map = mk(150, 129, g => {
-      g.fillStyle = '#2f78c0'; g.fillRect(0, 0, 150, 129); g.fillStyle = '#e8d29a'; g.fillRect(0, WORLD_R * 2 * MS, 150, 20 * MS); g.fillStyle = '#2f7a3e'; g.fillRect(0, 0, ox, WORLD_R * 2 * MS); g.fillStyle = '#3a8ad0'; g.fillRect(0, (RIVER_Z + WORLD_R - 6) * MS, ox, 12 * MS);
+      g.fillStyle = '#2f78c0'; g.fillRect(0, 0, 150, 129); g.fillStyle = '#3a3436'; g.fillRect(0, 0, 150, 2);
+      g.fillStyle = '#c2ab5e'; g.fillRect(0, 0, X(JUNGLE_X), Z(WORLD_R)); g.fillStyle = '#2f7a3e'; g.fillRect(X(JUNGLE_X), 0, ox - X(JUNGLE_X), Z(WORLD_R)); g.fillStyle = '#77796f'; g.fillRect(0, 0, 2, Z(WORLD_R));
+      g.fillStyle = '#e8d29a'; g.fillRect(0, Z(WORLD_R), 150, 20 * MS); g.fillStyle = '#3a8ad0'; g.fillRect(X(BND.x0 + 18), Z(RIVER_Z - 6), ox - X(BND.x0 + 18), 12 * MS);
+      const dot = (x, z, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(X(x), Z(z), r * MS, 0, TAU); g.fill(); };
+      dot(POND.x, POND.z, POND.r, '#3a8ad0'); dot(FALLS.x, FALLS.z, FALLS.r, '#3a8ad0'); dot(ISLE.x, ISLE.z, ISLE.r, '#e8d29a'); dot(ISLE.x, ISLE.z, ISLE.r - 11, '#2f7a3e'); dot(LROCK.x, LROCK.z, 9, '#b59565'); dot(-350, 70, 12, '#9aa08a');
+      g.fillStyle = '#8a6a4a'; g.fillRect(X(PIER_X) - 0.5, Z(SHORE), 1.5, 46 * MS);
       for (let j = 0; j < GN; j++) for (let i = 0; i < GN; i++) { g.fillStyle = this.isOpen(i, j) ? '#5a6078' : '#1c2030'; g.fillRect(ox + i * c, j * c, c + 0.5, c + 0.5); }
       g.fillStyle = '#9aa4c0'; g.fillRect(ox + (GC - 2) * c, (GC - 2) * c, 5 * c, 5 * c); g.fillStyle = '#3f6f9a'; g.fillRect(ox + 17 * c - 1, 17 * c - 1, 8 * c, 8 * c);
       ARENAS.forEach((a, d) => { g.fillStyle = DCOL[d]; g.globalAlpha = S.armor[d] ? 0.55 : 0.3; g.fillRect(ox + (a.i - 2) * c, (a.j - 2) * c, 5 * c, 5 * c); }); g.globalAlpha = 1;
@@ -328,7 +302,7 @@ class World {
     for (let i = this.texts.length - 1; i >= 0; i--) { const t = this.texts[i]; t.life -= dt; t.y += 1.4 * dt; if (t.life <= 0) this.texts.splice(i, 1); }
     for (const c of this.crates) { if (c.hitT > 0) c.hitT -= dt; if (c.dead && !c.mis) { c.resp -= dt; if (c.resp <= 0 && Math.hypot(c.x - this.h.x, c.z - this.h.z) > 30) c.dead = false; } }
     if (this.room) { this.upRoom(dt); return; }
-    this.upClock(dt); this.upCitizens(dt); this.upLife(dt);
+    this.tod = (this.tod + dt / 420) % 1; this.upClock(dt); this.upCitizens(dt); this.upLife(dt);
     if (this.cut) { this.upCut(dt); this.upCamera(dt); return; }
     if (this.h.veh) this.upVehicle(dt); else this.upHero(dt);
     this.upVehs(dt);
@@ -367,7 +341,7 @@ class World {
     else {
       this.camYaw = lerpA(this.camYaw, h.yaw, Math.min(1, dt * (v ? 4.5 : 7)));
       const fx = Math.sin(this.camYaw), fz = Math.cos(this.camYaw), big = this.boss ? 2.5 : 0, hx = h.x, hy = h.y + 1.9, hz = h.z;
-      const P = !v ? [7.4 + big, 4.0 + big * 0.6, 4, 1.7] : v.type === 'car' ? [10.5, 4.8, 6, 1.4] : v.type === 'heli' ? [16, 7.5, 7, 0.5] : [19, 6.5, 16, -3];
+      const P = !v ? [7.4 + big, 4.0 + big * 0.6, 4, 1.7] : v.type === 'car' ? [10.5, 4.8, 6, 1.4] : v.type === 'boat' ? [12.5, 5.4, 6, 1.2] : v.type === 'heli' ? [16, 7.5, 7, 0.5] : [19, 6.5, 16, -3];
       ex = h.x - fx * P[0]; ez = h.z - fz * P[0]; ey = h.y + P[1]; tx = h.x + fx * P[2]; tz = h.z + fz * P[2]; ty = h.y + P[3];
       if (!v || v.type === 'car') {
         let t = 1; const ci = Math.floor(ex / CS + GC + 0.5), cj = Math.floor(ez / CS + GC + 0.5), hi = Math.floor(hx / CS + GC + 0.5), hj = Math.floor(hz / CS + GC + 0.5);
@@ -398,9 +372,9 @@ class World {
   toScreen(x, y, z) { const m = this.vp, w = m[3] * x + m[7] * y + m[11] * z + m[15]; if (w < 0.2) return null; return [(m[0] * x + m[4] * y + m[8] * z + m[12]) / w * W / 2 + W / 2, H / 2 - (m[1] * x + m[5] * y + m[9] * z + m[13]) / w * H / 2, w]; }
   draw(g) {
     if (this.room) return this.drawRoom(g);
-    const h = this.h, t = this.t, e = this.eye, tg = this.tgt || [h.x, h.y + 1.6, h.z], nat = clamp(Math.max((-h.x - WORLD_R + 10) / 50, (h.z - WORLD_R + 5) / 30), 0, 1), env = nat > 0.01 ? this.mixEnv(nat) : this.env; // the jungle and the sea are always sunny
+    const h = this.h, t = this.t, e = this.eye, tg = this.tgt || [h.x, h.y + 1.6, h.z], nat = clamp(Math.max((-h.x - WORLD_R + 10) / 50, (h.z - WORLD_R + 5) / 30), 0, 1), env = this.timeEnv(nat > 0.01 ? this.mixEnv(nat) : this.env), ngt = this.night; // the jungle and the sea are always sunny; the time of day tints everything
     this.vp = M4.mul(this.proj, M4.look(e[0], e[1], e[2], tg[0], tg[1], tg[2]));
-    const sp = this.toScreen(e[0] + SUN_DIR[0] * 400, e[1] + SUN_DIR[1] * 400, e[2] + SUN_DIR[2] * 400); env.sunScr = sp ? [(sp[0] - W / 2) / (W / 2), (H / 2 - sp[1]) / (H / 2), 1] : [0, 0, 0];
+    const sp = this.toScreen(e[0] + env.sun[0] * 400, e[1] + env.sun[1] * 400, e[2] + env.sun[2] * 400); env.sunScr = sp ? [(sp[0] - W / 2) / (W / 2), (H / 2 - sp[1]) / (H / 2), 1] : [0, 0, 0];
     env.yaw = Math.atan2(tg[0] - e[0], tg[2] - e[2]); env.time = t;
     G3.begin();
     const nd = this.nextDistrict(), near = (x, z, r) => Math.abs(x - h.x) < r && Math.abs(z - h.z) < r;
@@ -408,18 +382,18 @@ class World {
       if (near(p.x, p.z, 90) && !this.mis) pad3(p.x, p.z, p.r, p.col, t, this.onPad === p);
       if (p.d != null && !this.mis) G3.agmesh(p.x, 60, p.z, CYX, 0.8, 60, 0.8, C3(p.col), p.d === nd ? 0.7 + Math.sin(t * 4) * 0.2 : 0.2);
     }
-    for (const l of this.lamps) if (Math.abs(l[0] - e[0]) < 70 && Math.abs(l[1] - e[2]) < 70) G3.agmesh(l[0], 5.8, l[1], SPX, 1.1, 0.6, 1.1, l[2], 0.45);
+    for (const l of this.lamps) if (Math.abs(l[0] - e[0]) < 70 && Math.abs(l[1] - e[2]) < 70) { G3.agmesh(l[0], l[3] || 5.8, l[1], SPX, 1.1 + ngt * 0.7, 0.6 + ngt * 0.4, 1.1 + ngt * 0.7, l[2], 0.45 + ngt * 0.3); if (ngt > 0.3) G3.agmesh(l[0], 0.2, l[1], SPT, 4.5, 0.12, 4.5, l[2], 0.13 * ngt); } // lamps shine brighter at night
     for (const c of this.cits) if (near(c.x, c.z, 75)) { G3.shadow(c.x, 0.05, c.z, 0.5, 0.35); citizen3(c, t); }
     for (const c of this.crates) if (!c.dead && near(c.x, c.z, 110)) { G3.shadow(c.x, c.y + 0.05, c.z, 0.9, 0.4); crate3(c); }
     for (const en of this.en) { const k = clamp(1 - en.y / 12, 0.4, 1); G3.shadow(en.x, 0.05, en.z, en.r * 1.5 * k, 0.45 * k); enemy3(en); }
     this.drawCombat(t); this.drawVehs(t); this.drawBases(t); this.drawPal(t); this.drawLife(t);
     let pose = 'idle', pt = 0;
     if (this.cut || (this.mis && this.mis.state === 'win')) pose = 'win'; else if (h.hurtT > 0 || this.koT > 0 || (this.mis && this.mis.state === 'lose')) pose = 'hurt'; else if (h.superT > 0 || h.blastT > 0) pose = 'blast';
-    else if (h.atk) { pose = h.atk.pose; pt = h.atk.t / h.atk.dur; } else if (h.chute) pose = 'chute'; else if (h.swim) pose = 'swim'; else if (h.climb) pose = 'climb'; else if (!h.on) pose = h.jet ? 'hover' : h.vy > 0 ? 'jump' : 'fall'; else if (h.mv > 0.1) pose = 'run'; else if (h.mv < -0.1) pose = 'back';
+    else if (h.atk) { pose = h.atk.pose; pt = h.atk.t / h.atk.dur; } else if (h.chute) pose = 'chute'; else if (h.swim) pose = 'swim'; else if (h.climb) pose = 'climb'; else if (!h.on) pose = h.jet ? 'hover' : h.vy > 0 ? 'jump' : 'fall'; else if (h.mv > 0.1) pose = h.wade ? 'wade' : 'run'; else if (h.mv < -0.1) pose = 'back';
     const arm = S.armor.slice(); if (this.preview >= 0) arm[this.preview] = true;
     const f = this.floorAt(h.x, h.z, h.y), sk = clamp(1 - (h.y - f) / 30, 0.25, 1);
     if (!h.veh) {
-      G3.shadow(h.x, f + 0.05, h.z, 0.75 * sk, 0.5 * sk);
+      if (h.y > -0.05) G3.shadow(h.x, f + 0.05, h.z, 0.75 * sk, 0.5 * sk);
       if (!(h.inv > 0 && Math.floor(t * 18) % 2)) hero3({ x: h.x, y: h.y, z: h.z, yaw: h.yaw, t, pose, pt, armor: arm, suit: S.suit, melee: h.swim ? 'fist' : S.wp.m, ranged: S.wp.r, jet: h.jet, chute: h.chute });
       if (h.boost > 0) G3.agmesh(h.x, h.y + 1, h.z, SPX, 1.1, 1.4, 1.1, C3('#39d0ff'), 0.22 + Math.sin(t * 10) * 0.07);
       if (h.sup >= 100) G3.agmesh(h.x, h.y + 1, h.z, SPX, 1.0, 1.3, 1.0, C3('#ffd23f'), 0.14 + Math.sin(t * 8) * 0.05);
@@ -430,6 +404,12 @@ class World {
     this.drawHud(g);
   }
   mixEnv(k) { const a = this.env, b = this.envDay || (this.envDay = this.envFor(4, [true, true, true, true, true])), m = (p, q) => mixC(p, q, k); return { top: m(a.top, b.top), hor: m(a.hor, b.hor), fog: m(a.fog, b.fog), amb: m(a.amb, b.amb), sunCol: m(a.sunCol, b.sunCol), sun: SUN_DIR, fogD: lerp(a.fogD, b.fogD, k), litA: a.litA, litB: a.litB, sunDisc: m(a.sunDisc, b.sunDisc), sunScr: [0, 0, 0], cloud: m(a.cloud, b.cloud), cloudA: lerp(a.cloudA, b.cloudA, k), yaw: 0, time: 0 }; }
+  timeEnv(a) { // the day goes by: sunrise, noon, sunset and a short starry night
+    const ph = this.tod * TAU, el = Math.sin(ph - HPI) + 0.45, dk = clamp((el + 0.15) / 0.4, 0, 1), day = dk * dk * (3 - 2 * dk), n = 1 - day, dusk = 4 * day * n, m = mixC; this.night = n;
+    const sv = [0.3 + 0.55 * Math.sin(ph), 0.22 + 0.62 * Math.max(day * Math.max(el, 0) / 1.45, n * 0.55), 0.5], sl = Math.hypot(sv[0], sv[1], sv[2]), lit = v => v > 0.04 ? Math.min(1, v * (1 - day * (this.L >= 3 ? 0.72 : 0)) + n * 0.55) : v, dark = [0.06, 0.08, 0.2], glow = [1, 0.56, 0.3];
+    return { top: m(a.top, [0.015, 0.025, 0.09], n * 0.93), hor: m(m(a.hor, dark, n * 0.9), glow, dusk * 0.4), fog: m(m(a.fog, dark, n * 0.9), glow, dusk * 0.3), amb: [Math.max(0.17, a.amb[0] * (1 - n * 0.56)), Math.max(0.19, a.amb[1] * (1 - n * 0.5)), Math.max(0.27, a.amb[2] * (1 - n * 0.3))],
+      sunCol: m(m(mulC(a.sunCol, day), [0.2, 0.25, 0.4], n), [1, 0.5, 0.2], dusk * 0.35), sun: [sv[0] / sl, sv[1] / sl, sv[2] / sl], fogD: a.fogD, litA: a.litA.map(lit), litB: a.litB.map(lit), sunDisc: m(a.sunDisc, [0.8, 0.85, 1], n), sunScr: [0, 0, 0], cloud: mulC(a.cloud, 1 - n * 0.78), cloudA: a.cloudA, yaw: 0, time: 0, star: n };
+  }
   bar(g, x, y, w, hh, f, c1, c2) {
     g.fillStyle = 'rgba(0,0,0,0.55)'; rr(g, x - 2, y - 2, w + 4, hh + 4, hh / 2 + 2); g.fill();
     if (f > 0.01) { const gr = g.createLinearGradient(x, 0, x + w, 0); gr.addColorStop(0, c1); gr.addColorStop(1, c2); g.fillStyle = gr; rr(g, x, y, Math.max(hh, w * clamp(f, 0, 1)), hh, hh / 2); g.fill(); }
@@ -482,7 +462,7 @@ class World {
     // coins + map
     const cs = 1 + Math.max(0, this.coinPulse) * 0.15;
     g.fillStyle = 'rgba(10,14,26,0.72)'; rr(g, W - 214, 12, 200, 50, 25); g.fill(); drawCoin(g, W - 184, 37, 15, t);
-    g.fillStyle = '#ffe14d'; g.font = `bold ${Math.round(28 * cs)}px ${FONT}`; g.textAlign = 'left'; g.fillText(S.coins, W - 160, 38);
+    g.fillStyle = '#ffe14d'; g.font = `bold ${Math.round(28 * cs)}px ${FONT}`; g.textAlign = 'left'; g.fillText(S.coins, W - 160, 38); g.font = '20px Arial'; g.fillText(this.night > 0.5 ? '🌙' : '☀️', W - 50, 38);
     if (!m) {
       const mx = W - 164, my = 72; g.fillStyle = 'rgba(10,14,26,0.72)'; rr(g, mx - 6, my - 6, 162, 141, 12); g.fill(); g.globalAlpha = 0.9; g.drawImage(this.map, mx, my); g.globalAlpha = 1;
       const mp = (x, z) => [clamp(mx + (x - BND.x0) * this.MS, mx, mx + 150), clamp(my + (z - BND.z0) * this.MS, my, my + 128)], nd = this.nextDistrict();
@@ -503,7 +483,7 @@ class World {
     // key help: for vehicles always, on foot for brand-new players
     if (!UI.isTouch && !this.boss && (v || S.stats.wins < 2)) {
       const keys = !v ? [['↑', 'Run'], ['← →', 'Turn'], ['SPACE', 'Jump / climb walls'], ['J', 'Hit'], ['K', 'Blast'], ['F', 'Car']]
-        : v.type === 'car' ? [['↑ ↓', 'Drive'], ['← →', 'Steer'], ['J', 'Turbo'], ['K', 'Blast'], ['F', 'Get out']]
+        : v.type === 'boat' ? [['↑ ↓', 'Go'], ['← →', 'Steer'], ['F', 'Get out']] : v.type === 'car' ? [['↑ ↓', 'Drive'], ['← →', 'Steer'], ['J', 'Turbo'], ['K', 'Blast'], ['F', 'Get out']]
           : v.type === 'heli' ? [['↑ ↓', 'Fly'], ['← →', 'Turn'], ['SPACE', 'Up'], ['SHIFT', 'Down'], ['K', 'Rockets'], ['F', 'Jump out']]
             : [['↑', v.air ? 'Climb' : 'Take off'], ['↓', 'Dive'], ['← →', 'Turn'], ['J', 'Afterburner'], ['K', 'Missiles'], ['F', 'Eject']];
       g.font = `bold 17px ${FONT}`; let wd = 20; for (const [k, s] of keys) wd += g.measureText(k).width + 18 + 8 + g.measureText(s).width + 22; let x = W / 2 - wd / 2 + 14;
